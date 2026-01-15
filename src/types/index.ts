@@ -1,13 +1,37 @@
+// Music service providers
+export type MusicProvider = 'spotify' | 'apple_music' | 'deezer' | 'soundcloud' | 'youtube' | 'amazon_music';
+
+// Provider link information
+export interface ProviderLink {
+  provider: MusicProvider;
+  provider_track_id: string;
+  url_web?: string;
+  url_app?: string;
+  url_preview?: string;
+}
+
+// Canonical track shape for unified search results
 export interface Track {
   id: string;
-  external_id: string;
-  provider: 'spotify' | 'youtube' | 'apple_music';
   title: string;
-  artist: string;
+  artists: string[]; // Array of artist names
   album?: string;
+  duration_ms?: number;
+  artwork_url?: string;
+  isrc?: string;
+  
+  // Provider-specific data
+  providerIds: Record<MusicProvider, string>; // Map of provider -> provider track ID
+  providerLinks: ProviderLink[]; // Array of available provider links
+  
+  // Legacy fields for backward compatibility
+  external_id?: string;
+  provider?: MusicProvider;
+  artist?: string;
   cover_url?: string;
   preview_url?: string;
-  duration_ms?: number;
+  
+  // Harmonic fingerprint data
   detected_key?: string;
   detected_mode?: 'major' | 'minor' | 'unknown';
   progression_raw?: string[];
@@ -16,9 +40,14 @@ export interface Track {
   cadence_type?: 'none' | 'loop' | 'plagal' | 'authentic' | 'deceptive' | 'other';
   confidence_score?: number;
   analysis_source?: 'metadata' | 'crowd' | 'analysis';
+  
+  // Audio features
   energy?: number;
   danceability?: number;
   valence?: number;
+  
+  // Metadata
+  popularity_score?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -28,14 +57,22 @@ export interface UserProfile {
   email?: string;
   display_name?: string;
   avatar_url?: string;
+  preferred_provider?: MusicProvider | 'none';
+  twofa_enabled?: boolean;
+  twofa_secret?: string;
+  twofa_backup_codes?: string[];
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface UserProvider {
   id: string;
   user_id: string;
-  provider: 'spotify' | 'youtube' | 'apple_music';
+  provider: MusicProvider;
   provider_user_id?: string;
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: string;
   connected_at: string;
 }
 
@@ -68,6 +105,70 @@ export interface ChordSubmission {
 }
 
 export type InteractionType = 'like' | 'save' | 'skip' | 'more_harmonic' | 'more_vibe' | 'share';
+
+// Play event types
+export type PlayAction = 'open_app' | 'open_web' | 'preview';
+
+export interface PlayEvent {
+  id: string;
+  user_id?: string;
+  track_id: string;
+  provider: MusicProvider;
+  action: PlayAction;
+  played_at: string;
+  context?: string;
+  device?: string;
+  metadata?: Record<string, any>;
+}
+
+// Track connections (WhoSampled-style)
+export type ConnectionType = 'sample' | 'cover' | 'interpolation' | 'remix' | 'inspiration';
+
+export interface TrackConnection {
+  id: string;
+  from_track_id: string;
+  to_track_id: string;
+  connection_type: ConnectionType;
+  confidence?: number;
+  evidence_url?: string;
+  evidence_text?: string;
+  created_at: string;
+  created_by?: string;
+}
+
+export interface ConnectionGraph {
+  track: Track;
+  upstream: Array<TrackConnection & { track: Track }>;   // What this track comes from
+  downstream: Array<TrackConnection & { track: Track }>; // What this track influenced
+  most_popular_derivative?: Track;
+}
+
+// Search types
+export interface SearchResult {
+  tracks: Track[];
+  total: number;
+  cached: boolean;
+  partial_results?: string[]; // List of providers that had errors
+  warnings?: string[];
+}
+
+export interface SearchParams {
+  query: string;
+  market?: string;
+  limit?: number;
+}
+
+// 2FA types
+export interface TwoFactorSetup {
+  secret: string;
+  qr_code: string;
+  backup_codes: string[];
+}
+
+export interface TwoFactorVerify {
+  code: string;
+  backup_code?: boolean;
+}
 
 // Roman numeral to display mapping
 export const ROMAN_NUMERALS = {
