@@ -37,10 +37,23 @@ export function useRecordPlayEvent() {
 
   return useMutation({
     mutationFn: async (params: RecordPlayEventParams): Promise<PlayEventData> => {
+      // Only record if user is authenticated
+      if (!user) {
+        console.warn('Cannot record play event: user not authenticated');
+        return {
+          id: crypto.randomUUID(),
+          track_id: params.track_id,
+          provider: params.provider,
+          action: params.action,
+          played_at: new Date().toISOString(),
+          context: params.context,
+        };
+      }
+
       const { data, error } = await supabase
         .from('play_events')
         .insert({
-          user_id: user?.id,
+          user_id: user.id,
           track_id: params.track_id,
           provider: params.provider,
           action: params.action,
@@ -56,7 +69,7 @@ export function useRecordPlayEvent() {
         // Return mock data to not break UI
         return {
           id: crypto.randomUUID(),
-          user_id: user?.id,
+          user_id: user.id,
           track_id: params.track_id,
           provider: params.provider,
           action: params.action,

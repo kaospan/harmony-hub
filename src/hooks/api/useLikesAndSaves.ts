@@ -36,10 +36,10 @@ export function useTrackLikeCount(trackId: string) {
   return useQuery({
     queryKey: ['track-like-count', trackId],
     queryFn: async () => {
-      // Use count aggregation which is allowed
+      // Use count aggregation with minimal field selection
       const { count, error } = await supabase
         .from('track_likes')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('track_id', trackId);
 
       if (error) {
@@ -65,7 +65,7 @@ export function useUserLikedCount() {
 
       const { count, error } = await supabase
         .from('track_likes')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id);
 
       if (error) throw error;
@@ -159,10 +159,10 @@ export function useTrackSaveCount(trackId: string) {
   return useQuery({
     queryKey: ['track-save-count', trackId],
     queryFn: async () => {
-      // Use count aggregation which is allowed
+      // Use count aggregation with minimal field selection
       const { count, error } = await supabase
         .from('track_saves')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('track_id', trackId);
 
       if (error) {
@@ -188,7 +188,7 @@ export function useUserSavedCount() {
 
       const { count, error } = await supabase
         .from('track_saves')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id);
 
       if (error) throw error;
