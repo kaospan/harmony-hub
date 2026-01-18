@@ -3,9 +3,12 @@ import { ExternalLink, Smartphone, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getProviderLinks, openProviderLink, TrackProviderInfo, MusicProvider } from '@/lib/providers';
 import { cn } from '@/lib/utils';
+import { useRecordPlayEvent } from '@/hooks/api/usePlayEvents';
+import { toast } from 'sonner';
 
 interface StreamingLinksProps {
   track: TrackProviderInfo;
+  trackId?: string;
   defaultProvider?: MusicProvider | null;
   onSetDefault?: (provider: MusicProvider) => void;
   compact?: boolean;
@@ -23,18 +26,35 @@ const providerLogos: Record<string, string> = {
 
 export function StreamingLinks({
   track,
+  trackId,
   defaultProvider,
   onSetDefault,
   compact = false,
   className,
 }: StreamingLinksProps) {
   const links = getProviderLinks(track);
+  const recordPlay = useRecordPlayEvent();
+
+  const handleLinkClick = (link: any, preferApp: boolean) => {
+    // Record play event if we have a track ID
+    if (trackId) {
+      recordPlay.mutate({
+        track_id: trackId,
+        provider: link.provider,
+        action: preferApp ? 'open_app' : 'open_web',
+        context: 'streaming_links',
+      });
+    }
+
+    // Open the link
+    openProviderLink(link, preferApp);
+  };
 
   if (links.length === 0) {
     return (
       <div className={cn('text-muted-foreground text-sm flex items-center gap-2', className)}>
         <Music className="w-4 h-4" />
-        <span>No streaming links available</span>
+        <span>No streaming links available yet</span>
       </div>
     );
   }
@@ -47,7 +67,7 @@ export function StreamingLinks({
             key={link.provider}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => openProviderLink(link, false)}
+            onClick={() => handleLinkClick(link, false)}
             className={cn(
               'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors',
               'hover:opacity-90',
@@ -103,7 +123,7 @@ export function StreamingLinks({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => openProviderLink(link, true)}
+                  onClick={() => handleLinkClick(link, true)}
                   title="Open in app"
                 >
                   <Smartphone className="w-4 h-4" />
@@ -113,7 +133,7 @@ export function StreamingLinks({
                 variant="secondary"
                 size="sm"
                 className="gap-1"
-                onClick={() => openProviderLink(link, false)}
+                onClick={() => handleLinkClick(link, false)}
               >
                 <ExternalLink className="w-3 h-3" />
                 Open

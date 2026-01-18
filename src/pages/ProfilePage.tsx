@@ -23,9 +23,12 @@ import {
 } from 'lucide-react';
 import { usePlayHistory, usePlayStats } from '@/hooks/api/usePlayEvents';
 import { useProfile, useUserProviders, useSetPreferredProvider } from '@/hooks/api/useProfile';
+import { useLikedTracksCount } from '@/hooks/api/useLikes';
+import { useSavedTracksCount } from '@/hooks/api/useSaves';
 import { PROVIDER_INFO } from '@/lib/providers';
 import { MusicProvider } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 // Mock taste DNA data
 const tasteDNA = {
@@ -57,6 +60,8 @@ export default function ProfilePage() {
     provider: providerFilter === 'all' ? undefined : providerFilter,
   });
   const setPreferredProvider = useSetPreferredProvider();
+  const { data: likedCount = 0 } = useLikedTracksCount();
+  const { data: savedCount = 0 } = useSavedTracksCount();
 
   const handleSignOut = async () => {
     await signOut();
@@ -257,7 +262,9 @@ export default function ProfilePage() {
           {/* Spotify */}
           <button 
             className="w-full p-4 glass rounded-2xl flex items-center justify-between hover:bg-muted/30 transition-colors"
-            onClick={() => {/* TODO: Connect Spotify */}}
+            onClick={() => {
+              toast.info('Spotify connection coming soon! OAuth integration in progress.');
+            }}
           >
             {(() => {
               const spotifyProvider = userProviders.find(p => p.provider === 'spotify');
@@ -290,7 +297,9 @@ export default function ProfilePage() {
           {/* YouTube Music */}
           <button 
             className="w-full p-4 glass rounded-2xl flex items-center justify-between hover:bg-muted/30 transition-colors"
-            onClick={() => {/* TODO: Connect YouTube */}}
+            onClick={() => {
+              toast.info('YouTube Music connection coming soon! OAuth integration in progress.');
+            }}
           >
             {(() => {
               const youtubeProvider = userProviders.find(p => p.provider === 'youtube');
@@ -505,13 +514,13 @@ export default function ProfilePage() {
           <button className="p-4 glass rounded-2xl flex flex-col items-center gap-2 hover:bg-muted/30 transition-colors">
             <Heart className="w-6 h-6 text-accent" />
             <span className="text-sm font-medium">Liked</span>
-            <span className="text-xs text-muted-foreground">0 songs</span>
+            <span className="text-xs text-muted-foreground">{likedCount} songs</span>
           </button>
 
           <button className="p-4 glass rounded-2xl flex flex-col items-center gap-2 hover:bg-muted/30 transition-colors">
             <Bookmark className="w-6 h-6 text-primary" />
             <span className="text-sm font-medium">Saved</span>
-            <span className="text-xs text-muted-foreground">0 songs</span>
+            <span className="text-xs text-muted-foreground">{savedCount} songs</span>
           </button>
         </motion.div>
       </main>

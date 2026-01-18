@@ -3,27 +3,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { TrackCard } from '@/components/TrackCard';
 import { FeedSkeleton } from '@/components/FeedSkeleton';
 import { BottomNav } from '@/components/BottomNav';
-import { seedTracks } from '@/data/seedTracks';
 import { useAuth } from '@/hooks/useAuth';
 import { InteractionType, Track } from '@/types';
 import { ChevronUp, ChevronDown, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { useFeedTracks } from '@/hooks/api/useTracks';
 
 export default function FeedPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [tracks] = useState<Track[]>(seedTracks);
+  const { data: tracks = [], isLoading: tracksLoading } = useFeedTracks();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [interactions, setInteractions] = useState<Map<string, Set<InteractionType>>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // Simulate initial load
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleInteraction = (type: InteractionType) => {
     if (!user) {
@@ -123,10 +116,29 @@ export default function FeedPage() {
     };
   }, [currentIndex]);
 
-  if (authLoading || loading) {
+  if (authLoading || tracksLoading) {
     return (
       <div className="min-h-screen bg-background">
         <FeedSkeleton />
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (!tracks || tracks.length === 0) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="fixed top-0 left-0 right-0 z-40 glass-strong safe-top">
+          <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
+            <h1 className="text-lg font-bold gradient-text">HarmonyFeed</h1>
+          </div>
+        </header>
+        <main className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center space-y-4">
+            <p className="text-muted-foreground">No tracks available in feed.</p>
+            <p className="text-sm text-muted-foreground">Please run the seed script to populate data.</p>
+          </div>
+        </main>
         <BottomNav />
       </div>
     );

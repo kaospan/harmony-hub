@@ -13,6 +13,10 @@ import { cn } from '@/lib/utils';
 import { useRecordListeningActivity } from '@/hooks/api/useNearbyListeners';
 import { useRecordPlay } from '@/hooks/api/useFollowing';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from '@/hooks/api/useLikes';
+import { useIsTrackSaved, useSaveTrack, useUnsaveTrack } from '@/hooks/api/useSaves';
+import { useTrackProviderLinks } from '@/hooks/api/useTracks';
+import { toast } from 'sonner';
 
 interface TrackCardProps {
   track: Track;
@@ -29,6 +33,17 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
   const playStartTimeRef = useRef<number | null>(null);
   const recordActivity = useRecordListeningActivity();
   const recordPlay = useRecordPlay();
+  
+  // Fetch provider links from database
+  const { data: providerLinks = [] } = useTrackProviderLinks(track.id);
+  
+  // Track like/save state from database
+  const { data: isLiked = false } = useIsTrackLiked(track.id);
+  const { data: isSaved = false } = useIsTrackSaved(track.id);
+  const likeTrack = useLikeTrack();
+  const unlikeTrack = useUnlikeTrack();
+  const saveTrack = useSaveTrack();
+  const unsaveTrack = useUnsaveTrack();
 
   // Pause audio when card becomes inactive
   useEffect(() => {
@@ -108,6 +123,34 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
 
   const handleShare = () => {
     onInteraction('share');
+  };
+
+  const handleLikeToggle = async () => {
+    if (!user) {
+      toast.error('Please sign in to like tracks');
+      return;
+    }
+
+    if (isLiked) {
+      await unlikeTrack.mutateAsync(track.id);
+    } else {
+      await likeTrack.mutateAsync(track.id);
+    }
+    onInteraction('like');
+  };
+
+  const handleSaveToggle = async () => {
+    if (!user) {
+      toast.error('Please sign in to save tracks');
+      return;
+    }
+
+    if (isSaved) {
+      await unsaveTrack.mutateAsync(track.id);
+    } else {
+      await saveTrack.mutateAsync(track.id);
+    }
+    onInteraction('save');
   };
 
   return (
@@ -213,6 +256,7 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
                     urlSpotifyApp: track.url_spotify_app || undefined,
                     urlYoutube: track.url_youtube || undefined,
                   }}
+                  trackId={track.id}
                   compact
                 />
               </div>
@@ -267,8 +311,8 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
           <ActionButton
             icon={Heart}
             label="Like"
-            isActive={interactions.has('like')}
-            onClick={() => onInteraction('like')}
+            isActive={isLiked}
+            onClick={handleLikeToggle}
             variant="accent"
           />
 
@@ -285,8 +329,8 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
           <ActionButton
             icon={Bookmark}
             label="Save"
-            isActive={interactions.has('save')}
-            onClick={() => onInteraction('save')}
+            isActive={isSaved}
+            onClick={handleSaveToggle}
             variant="muted"
           />
         </motion.div>
