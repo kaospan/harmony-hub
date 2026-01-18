@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { TrackCard } from '@/components/TrackCard';
 import { FeedSkeleton } from '@/components/FeedSkeleton';
 import { BottomNav } from '@/components/BottomNav';
-import { seedTracks } from '@/data/seedTracks';
+import { useFeed } from '@/hooks/api/useFeed';
 import { useAuth } from '@/hooks/useAuth';
 import { InteractionType, Track } from '@/types';
 import { ChevronUp, ChevronDown, LogIn } from 'lucide-react';
@@ -13,17 +13,10 @@ import { useNavigate } from 'react-router-dom';
 export default function FeedPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [tracks] = useState<Track[]>(seedTracks);
+  const { data: tracks = [], isLoading: feedLoading } = useFeed();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [interactions, setInteractions] = useState<Map<string, Set<InteractionType>>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // Simulate initial load
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleInteraction = (type: InteractionType) => {
     if (!user) {
@@ -123,10 +116,22 @@ export default function FeedPage() {
     };
   }, [currentIndex]);
 
-  if (authLoading || loading) {
+  if (authLoading || feedLoading) {
     return (
       <div className="min-h-screen bg-background">
         <FeedSkeleton />
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (!tracks || tracks.length === 0) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4 p-8">
+          <p className="text-muted-foreground">No tracks in feed yet.</p>
+          <p className="text-sm text-muted-foreground">Run the seed script to populate the feed.</p>
+        </div>
         <BottomNav />
       </div>
     );

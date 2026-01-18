@@ -23,9 +23,11 @@ import {
 } from 'lucide-react';
 import { usePlayHistory, usePlayStats } from '@/hooks/api/usePlayEvents';
 import { useProfile, useUserProviders, useSetPreferredProvider } from '@/hooks/api/useProfile';
+import { useUserLikedCount, useUserSavedCount } from '@/hooks/api/useLikesAndSaves';
 import { PROVIDER_INFO } from '@/lib/providers';
 import { MusicProvider } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 // Mock taste DNA data
 const tasteDNA = {
@@ -56,6 +58,8 @@ export default function ProfilePage() {
     limit: 20,
     provider: providerFilter === 'all' ? undefined : providerFilter,
   });
+  const { data: likedCount = 0 } = useUserLikedCount();
+  const { data: savedCount = 0 } = useUserSavedCount();
   const setPreferredProvider = useSetPreferredProvider();
 
   const handleSignOut = async () => {
@@ -70,6 +74,12 @@ export default function ProfilePage() {
     } catch (error) {
       console.error('Failed to set preferred provider:', error);
     }
+  };
+
+  const handleConnectProvider = (provider: string) => {
+    toast.info('OAuth connection coming soon!', {
+      description: `${provider} integration will be available in a future update.`,
+    });
   };
 
   if (loading) {
@@ -257,7 +267,7 @@ export default function ProfilePage() {
           {/* Spotify */}
           <button 
             className="w-full p-4 glass rounded-2xl flex items-center justify-between hover:bg-muted/30 transition-colors"
-            onClick={() => {/* TODO: Connect Spotify */}}
+            onClick={() => handleConnectProvider('Spotify')}
           >
             {(() => {
               const spotifyProvider = userProviders.find(p => p.provider === 'spotify');
@@ -290,7 +300,7 @@ export default function ProfilePage() {
           {/* YouTube Music */}
           <button 
             className="w-full p-4 glass rounded-2xl flex items-center justify-between hover:bg-muted/30 transition-colors"
-            onClick={() => {/* TODO: Connect YouTube */}}
+            onClick={() => handleConnectProvider('YouTube Music')}
           >
             {(() => {
               const youtubeProvider = userProviders.find(p => p.provider === 'youtube');
@@ -505,13 +515,13 @@ export default function ProfilePage() {
           <button className="p-4 glass rounded-2xl flex flex-col items-center gap-2 hover:bg-muted/30 transition-colors">
             <Heart className="w-6 h-6 text-accent" />
             <span className="text-sm font-medium">Liked</span>
-            <span className="text-xs text-muted-foreground">0 songs</span>
+            <span className="text-xs text-muted-foreground">{likedCount} songs</span>
           </button>
 
           <button className="p-4 glass rounded-2xl flex flex-col items-center gap-2 hover:bg-muted/30 transition-colors">
             <Bookmark className="w-6 h-6 text-primary" />
             <span className="text-sm font-medium">Saved</span>
-            <span className="text-xs text-muted-foreground">0 songs</span>
+            <span className="text-xs text-muted-foreground">{savedCount} songs</span>
           </button>
         </motion.div>
       </main>

@@ -1,8 +1,5 @@
 /**
  * React hooks for play events tracking
- * 
- * NOTE: These hooks are stubs until the play_events table is created.
- * For MVP, we track plays via user_interactions table instead.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -33,7 +30,6 @@ interface PlayEventData {
 
 /**
  * Hook to record a play event
- * Uses user_interactions table as a stand-in until play_events table exists
  */
 export function useRecordPlayEvent() {
   const { user } = useAuth();
@@ -41,33 +37,39 @@ export function useRecordPlayEvent() {
 
   return useMutation({
     mutationFn: async (params: RecordPlayEventParams): Promise<PlayEventData> => {
-      // Record as interaction instead until play_events table exists
-      if (user) {
-        const { error } = await supabase
-          .from('user_interactions')
-          .insert({
-            user_id: user.id,
-            track_id: params.track_id,
-            interaction_type: `play_${params.action}`,
-          });
-        
-        if (error) console.warn('Failed to record play interaction:', error);
+      const { data, error } = await supabase
+        .from('play_events')
+        .insert({
+          user_id: user?.id,
+          track_id: params.track_id,
+          provider: params.provider,
+          action: params.action,
+          context: params.context,
+          device: params.device,
+          metadata: params.metadata,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Failed to record play event:', error);
+        // Return mock data to not break UI
+        return {
+          id: crypto.randomUUID(),
+          user_id: user?.id,
+          track_id: params.track_id,
+          provider: params.provider,
+          action: params.action,
+          played_at: new Date().toISOString(),
+          context: params.context,
+        };
       }
 
-      // Return mock play event data
-      return {
-        id: crypto.randomUUID(),
-        user_id: user?.id,
-        track_id: params.track_id,
-        provider: params.provider,
-        action: params.action,
-        played_at: new Date().toISOString(),
-        context: params.context,
-      };
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['play-history'] });
-      queryClient.invalidateQueries({ queryKey: ['user-interactions'] });
+      queryClient.invalidateQueries({ queryKey: ['play-stats'] });
     },
   });
 }
@@ -82,45 +84,35 @@ interface PlayHistoryParams {
 
 /**
  * Hook to fetch user's play history
- * Uses user_interactions filtered by play_* types
  */
 export function usePlayHistory(params: PlayHistoryParams = {}) {
   const { user } = useAuth();
-  const { limit = 20 } = params;
+  const { limit = 20, provider } = params;
 
   return useQuery({
-    queryKey: ['play-history', user?.id, limit],
+    queryKey: ['play-history', user?.id, limit, provider],
     queryFn: async (): Promise<PlayEventData[]> => {
       if (!user) return [];
 
-      const { data, error } = await supabase
-        .from('user_interactions')
-        .select(`
-          id,
-          user_id,
-          track_id,
-          interaction_type,
-          created_at
-        `)
+      let query = supabase
+        .from('play_events')
+        .select('*')
         .eq('user_id', user.id)
-        .like('interaction_type', 'play_%')
-        .order('created_at', { ascending: false })
+        .order('played_at', { ascending: false })
         .limit(limit);
+
+      if (provider) {
+        query = query.eq('provider', provider);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.warn('Failed to fetch play history:', error);
         return [];
       }
 
-      // Map interactions to play event shape
-      return (data || []).map(row => ({
-        id: row.id,
-        user_id: row.user_id,
-        track_id: row.track_id,
-        provider: 'spotify' as const,
-        action: row.interaction_type.replace('play_', ''),
-        played_at: row.created_at,
-      }));
+      return data || [];
     },
     enabled: !!user,
   });
@@ -138,10 +130,9 @@ export function usePlayStats() {
       if (!user) return null;
 
       const { count } = await supabase
-        .from('user_interactions')
+        .from('play_events')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .like('interaction_type', 'play_%');
+        .eq('user_id', user.id);
 
       return {
         totalPlays: count || 0,

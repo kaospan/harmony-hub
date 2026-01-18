@@ -13,6 +13,9 @@ import { cn } from '@/lib/utils';
 import { useRecordListeningActivity } from '@/hooks/api/useNearbyListeners';
 import { useRecordPlay } from '@/hooks/api/useFollowing';
 import { useAuth } from '@/hooks/useAuth';
+import { useToggleLike, useIsTrackLiked, useToggleSave, useIsTrackSaved } from '@/hooks/api/useLikesAndSaves';
+import { useRecordPlayEvent } from '@/hooks/api/usePlayEvents';
+import { toast } from 'sonner';
 
 interface TrackCardProps {
   track: Track;
@@ -29,6 +32,13 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
   const playStartTimeRef = useRef<number | null>(null);
   const recordActivity = useRecordListeningActivity();
   const recordPlay = useRecordPlay();
+  const recordPlayEvent = useRecordPlayEvent();
+  
+  // Likes and saves
+  const toggleLike = useToggleLike();
+  const toggleSave = useToggleSave();
+  const { data: isLiked = false } = useIsTrackLiked(track.id);
+  const { data: isSaved = false } = useIsTrackSaved(track.id);
 
   // Pause audio when card becomes inactive
   useEffect(() => {
@@ -110,6 +120,64 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
     onInteraction('share');
   };
 
+  const handleLike = () => {
+    if (!user) {
+      toast.error('Sign in to like tracks');
+      return;
+    }
+    toggleLike.mutate(track.id);
+  };
+
+  const handleSave = () => {
+    if (!user) {
+      toast.error('Sign in to save tracks');
+      return;
+    }
+    toggleSave.mutate(track.id);
+  };
+
+  const handleProviderClick = (provider: 'spotify' | 'youtube', preferApp = true) => {
+    // Record play event
+    recordPlayEvent.mutate({
+      track_id: track.id,
+      provider,
+      action: preferApp ? 'open_app' : 'open_web',
+      context: 'feed',
+    });
+
+    // Open provider link
+    let url: string | undefined;
+    let appUrl: string | undefined;
+
+    if (provider === 'spotify') {
+      url = track.url_spotify_web;
+      appUrl = track.url_spotify_app;
+    } else if (provider === 'youtube') {
+      url = track.url_youtube;
+      appUrl = `vnd.youtube://watch?v=${track.youtube_id}`;
+    }
+
+    if (!url) {
+      toast.error(`No ${provider} link available for this track`);
+      return;
+    }
+
+    if (preferApp && appUrl) {
+      // Try to open app, will fall back to web if app not installed
+      const start = Date.now();
+      window.location.href = appUrl;
+      
+      // If still on page after 1.5s, app probably not installed
+      setTimeout(() => {
+        if (Date.now() - start < 2000) {
+          window.open(url, '_blank');
+        }
+      }, 1500);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -183,6 +251,31 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
             )}
             {isPlaying ? 'Pause' : track.preview_url ? 'Play Preview' : 'Listen'}
           </Button>
+
+          {/* Provider Icons */}
+          {track.spotify_id && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="glass border-white/20 hover:bg-white/10 text-[#1DB954]"
+              onClick={() => handleProviderClick('spotify', true)}
+              title="Play on Spotify"
+            >
+              <span className="text-xl">🎵</span>
+            </Button>
+          )}
+
+          {track.youtube_id && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="glass border-white/20 hover:bg-white/10 text-[#FF0000]"
+              onClick={() => handleProviderClick('youtube', true)}
+              title="Play on YouTube"
+            >
+              <span className="text-xl">▶️</span>
+            </Button>
+          )}
 
           <Button
             variant="ghost"
@@ -267,8 +360,8 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
           <ActionButton
             icon={Heart}
             label="Like"
-            isActive={interactions.has('like')}
-            onClick={() => onInteraction('like')}
+            isActive={isLiked}
+            onClick={handleLike}
             variant="accent"
           />
 
@@ -285,8 +378,8 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
           <ActionButton
             icon={Bookmark}
             label="Save"
-            isActive={interactions.has('save')}
-            onClick={() => onInteraction('save')}
+            isActive={isSaved}
+            onClick={handleSave}
             variant="muted"
           />
         </motion.div>
