@@ -3,54 +3,52 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { TrackCard } from '@/components/TrackCard';
 import { FeedSkeleton } from '@/components/FeedSkeleton';
 import { BottomNav } from '@/components/BottomNav';
-import { seedTracks } from '@/data/seedTracks';
+import { useFeed, useToggleInteraction, useUserInteractions } from '@/hooks/api/useFeed';
 import { useAuth } from '@/hooks/useAuth';
-import { InteractionType, Track } from '@/types';
+import { InteractionType } from '@/types';
 import { ChevronUp, ChevronDown, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function FeedPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [tracks] = useState<Track[]>(seedTracks);
+  const { data: tracks = [], isLoading: feedLoading } = useFeed();
+  const { data: userInteractions } = useUserInteractions(user?.id);
+  const toggleInteraction = useToggleInteraction();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [interactions, setInteractions] = useState<Map<string, Set<InteractionType>>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    // Simulate initial load
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
+  const loading = authLoading || feedLoading;
 
-  const handleInteraction = (type: InteractionType) => {
+  const handleInteraction = async (type: InteractionType) => {
     if (!user) {
       navigate('/auth');
       return;
     }
 
-    const trackId = tracks[currentIndex]?.id;
-    if (!trackId) return;
+    const track = tracks[currentIndex];
+    if (!track) return;
 
-    setInteractions((prev) => {
-      const next = new Map(prev);
-      const trackInteractions = new Set(prev.get(trackId) || []);
+    try {
+      const result = await toggleInteraction.mutateAsync({
+        trackId: track.id,
+        interactionType: type as any,
+        userId: user.id,
+      });
 
-      if (trackInteractions.has(type)) {
-        trackInteractions.delete(type);
-      } else {
-        trackInteractions.add(type);
+      if (result.action === 'added') {
+        toast.success(`${type === 'like' ? 'Liked' : type === 'save' ? 'Saved' : 'Added'} track`);
       }
 
-      next.set(trackId, trackInteractions);
-      return next;
-    });
-
-    // Auto-advance on skip
-    if (type === 'skip' && currentIndex < tracks.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
+      // Auto-advance on skip
+      if (type === 'skip' && currentIndex < tracks.length - 1) {
+        setCurrentIndex((prev) => prev + 1);
+      }
+    } catch (error) {
+      console.error('Failed to toggle interaction:', error);
+      toast.error('Failed to save interaction');
     }
   };
 
@@ -133,81 +131,96 @@ export default function FeedPage() {
   }
 
   const currentTrack = tracks[currentIndex];
+  const trackInteractions = currentTrack
+    ? new Set([
+        ...(userInteractions?.likes.has(currentTrack.id) ? ['like' as InteractionType] : []),
+        ...(userInteractions?.saves.has(currentTrack.id) ? ['save' as InteractionType] : []),
+      ])
+    : new Set<InteractionType>();
 
   return (
-    <div className="min-h-screen bg-background flex flex-col" ref={containerRef}>
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 glass-strong safe-top">
-        <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
-          <h1 className="text-lg font-bold gradient-text">HarmonyFeed</h1>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              {currentIndex + 1} / {tracks.length}
-            </span>
-            {!user && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate('/auth')}
-                className="gap-1.5"
-              >
-                <LogIn className="w-4 h-4" />
-                Sign in
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Navigation arrows (desktop) */}
-      <div className="hidden md:flex fixed left-4 top-1/2 -translate-y-1/2 z-30 flex-col gap-2">
-        <Button
-          variant="outline"
-          size="icon"
-          className="glass"
-          onClick={goToPrevious}
-          disabled={currentIndex === 0}
-        >
-          <ChevronUp className="w-5 h-5" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="glass"
-          onClick={goToNext}
-          disabled={currentIndex === tracks.length - 1}
-        >
-          <ChevronDown className="w-5 h-5" />
-        </Button>
+    <div className="min-h-screen bg-background flex" ref={containerRef}>
+      {/* Side navigation - Desktop only */}
+      <div className="hidden lg:block">
+        <BottomNav />
       </div>
 
-      {/* Feed content */}
-      <main className="flex-1 pt-16 pb-24">
-        <div className="h-[calc(100vh-10rem)] max-w-lg mx-auto">
-          <AnimatePresence mode="wait">
-            {currentTrack && (
-              <motion.div
-                key={currentTrack.id}
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -50 }}
-                transition={{ duration: 0.3 }}
-                className="h-full"
-              >
-                <TrackCard
-                  track={currentTrack}
-                  isActive={true}
-                  onInteraction={handleInteraction}
-                  interactions={interactions.get(currentTrack.id) || new Set()}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </main>
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="fixed top-0 left-0 right-0 lg:left-20 z-40 glass-strong safe-top">
+          <div className="flex items-center justify-between px-4 py-3 max-w-4xl lg:mx-auto">
+            <h1 className="text-lg lg:text-xl font-bold gradient-text">HarmonyFeed</h1>
+            <div className="flex items-center gap-2">
+              <span className="text-xs lg:text-sm text-muted-foreground">
+                {currentIndex + 1} / {tracks.length}
+              </span>
+              {!user && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/auth')}
+                  className="gap-1.5"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span className="hidden sm:inline">Sign in</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        </header>
 
-      {/* Bottom navigation */}
-      <BottomNav />
+        {/* Navigation arrows (desktop) */}
+        <div className="hidden md:flex fixed left-4 lg:left-24 top-1/2 -translate-y-1/2 z-30 flex-col gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="glass"
+            onClick={goToPrevious}
+            disabled={currentIndex === 0}
+          >
+            <ChevronUp className="w-5 h-5" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="glass"
+            onClick={goToNext}
+            disabled={currentIndex === tracks.length - 1}
+          >
+            <ChevronDown className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* Feed content */}
+        <main className="flex-1 pt-16 pb-24 lg:pb-8">
+          <div className="h-[calc(100vh-10rem)] lg:h-[calc(100vh-6rem)] max-w-lg lg:max-w-3xl xl:max-w-4xl mx-auto px-4 lg:px-8">
+            <AnimatePresence mode="wait">
+              {currentTrack && (
+                <motion.div
+                  key={currentTrack.id}
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -50 }}
+                  transition={{ duration: 0.3 }}
+                  className="h-full"
+                >
+                  <TrackCard
+                    track={currentTrack}
+                    isActive={true}
+                    onInteraction={handleInteraction}
+                    interactions={trackInteractions}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </main>
+
+        {/* Bottom navigation - Mobile only */}
+        <div className="lg:hidden">
+          <BottomNav />
+        </div>
+      </div>
     </div>
   );
 }

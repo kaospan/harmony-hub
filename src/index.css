@@ -249,3 +249,65 @@
     padding-top: env(safe-area-inset-top);
   }
 }
+
+/* Desktop-specific utilities */
+@media (min-width: 1024px) {
+  /* Wider containers for desktop */
+  .desktop-container {
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Better spacing for large screens */
+  .desktop-spacing {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  /* Sidebar offset for fixed elements */
+  .sidebar-offset {
+    left: 5rem;
+  }
+
+  /* Smooth scrolling for desktop */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Better hover states */
+  .hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px -8px hsl(0 0% 0% / 0.5);
+  }
+}
+
+/* Tablet breakpoint utilities */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .tablet-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+/* Responsive text utilities */
+@media (min-width: 1024px) {
+  .responsive-text-lg {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+  
+  .responsive-text-xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+  
+  .responsive-text-2xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+}

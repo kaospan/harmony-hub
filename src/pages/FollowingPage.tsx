@@ -31,30 +31,40 @@ export default function FollowingPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <header className="fixed top-0 left-0 right-0 z-40 glass-strong safe-top">
-          <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
-            <h1 className="text-lg font-bold gradient-text">Following</h1>
-          </div>
-        </header>
+      <div className="min-h-screen bg-background flex">
+        {/* Side navigation - Desktop only */}
+        <div className="hidden lg:block">
+          <BottomNav />
+        </div>
 
-        <main className="flex-1 pt-20 pb-24 flex flex-col items-center justify-center px-4">
-          <div className="text-center space-y-4 max-w-sm">
-            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto">
-              <Users className="w-10 h-10 text-muted-foreground" />
+        <div className="flex-1 flex flex-col">
+          <header className="fixed top-0 left-0 right-0 lg:left-20 z-40 glass-strong safe-top">
+            <div className="flex items-center justify-between px-4 py-3 max-w-4xl lg:mx-auto">
+              <h1 className="text-lg lg:text-xl font-bold gradient-text">Following</h1>
             </div>
-            <h2 className="text-xl font-semibold">Sign in to see what people are listening to</h2>
-            <p className="text-muted-foreground">
-              Follow other music lovers and discover new tracks through their listening activity.
-            </p>
-            <Button onClick={() => navigate('/auth')} className="gap-2">
-              <User className="w-4 h-4" />
-              Sign in
-            </Button>
-          </div>
-        </main>
+          </header>
 
-        <BottomNav />
+          <main className="flex-1 pt-20 pb-24 lg:pb-8 flex flex-col items-center justify-center px-4">
+            <div className="text-center space-y-4 max-w-sm">
+              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto">
+                <Users className="w-10 h-10 text-muted-foreground" />
+              </div>
+              <h2 className="text-xl lg:text-2xl font-semibold">Sign in to see what people are listening to</h2>
+              <p className="text-muted-foreground lg:text-lg">
+                Follow other music lovers and discover new tracks through their listening activity.
+              </p>
+              <Button onClick={() => navigate('/auth')} className="gap-2">
+                <User className="w-4 h-4" />
+                Sign in
+              </Button>
+            </div>
+          </main>
+
+          {/* Bottom navigation - Mobile only */}
+          <div className="lg:hidden">
+            <BottomNav />
+          </div>
+        </div>
       </div>
     );
   }
@@ -62,20 +72,26 @@ export default function FollowingPage() {
   const isLoading = feedLoading || followingLoading;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 glass-strong safe-top">
-        <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
-          <h1 className="text-lg font-bold gradient-text">Following</h1>
-          <span className="text-sm text-muted-foreground">
-            {following?.length || 0} following
-          </span>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background flex">
+      {/* Side navigation - Desktop only */}
+      <div className="hidden lg:block">
+        <BottomNav />
+      </div>
 
-      {/* Content */}
-      <main className="flex-1 pt-16 pb-24 px-4">
-        <div className="max-w-lg mx-auto space-y-4">
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="fixed top-0 left-0 right-0 lg:left-20 z-40 glass-strong safe-top">
+          <div className="flex items-center justify-between px-4 py-3 max-w-4xl lg:mx-auto">
+            <h1 className="text-lg lg:text-xl font-bold gradient-text">Following</h1>
+            <span className="text-sm text-muted-foreground">
+              {following?.length || 0} following
+            </span>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="flex-1 pt-16 pb-24 lg:pb-8 px-4">
+          <div className="max-w-4xl lg:mx-auto space-y-4">
           {isLoading ? (
             <div className="space-y-4 pt-4">
               {[...Array(5)].map((_, i) => (
@@ -226,10 +242,14 @@ export default function FollowingPage() {
               ))}
             </AnimatePresence>
           )}
-        </div>
-      </main>
+          </div>
+        </main>
 
-      <BottomNav />
+        {/* Bottom navigation - Mobile only */}
+        <div className="lg:hidden">
+          <BottomNav />
+        </div>
+      </div>
     </div>
   );
 }

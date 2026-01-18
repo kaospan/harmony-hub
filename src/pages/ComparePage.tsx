@@ -3,10 +3,10 @@ import { motion } from 'framer-motion';
 import { BottomNav } from '@/components/BottomNav';
 import { ChordBadge } from '@/components/ChordBadge';
 import { HarmonyCard } from '@/components/HarmonyCard';
-import { seedTracks } from '@/data/seedTracks';
 import { Track } from '@/types';
 import { ArrowLeftRight, Check, Sparkles, Music, Key, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useCompareTracks } from '@/hooks/api/useTracks';
 import {
   Select,
   SelectContent,
@@ -94,6 +94,7 @@ function getSimilarityExplanation(track1: Track, track2: Track): string {
 export default function ComparePage() {
   const [trackA, setTrackA] = useState<Track | null>(null);
   const [trackB, setTrackB] = useState<Track | null>(null);
+  const { data: tracks = [], isLoading } = useCompareTracks(100);
 
   const similarity = trackA && trackB ? calculateSimilarity(trackA, trackB) : null;
   const explanation = trackA && trackB ? getSimilarityExplanation(trackA, trackB) : null;
@@ -118,13 +119,13 @@ export default function ComparePage() {
             <label className="text-sm font-medium text-muted-foreground">Track A</label>
             <Select
               value={trackA?.id}
-              onValueChange={(id) => setTrackA(seedTracks.find((t) => t.id === id) || null)}
+              onValueChange={(id) => setTrackA(tracks.find((t) => t.id === id) || null)}
             >
               <SelectTrigger className="bg-muted/50">
                 <SelectValue placeholder="Select track" />
               </SelectTrigger>
               <SelectContent>
-                {seedTracks.map((track) => (
+                {tracks.map((track) => (
                   <SelectItem key={track.id} value={track.id}>
                     <span className="truncate">{track.title}</span>
                   </SelectItem>
@@ -137,13 +138,13 @@ export default function ComparePage() {
             <label className="text-sm font-medium text-muted-foreground">Track B</label>
             <Select
               value={trackB?.id}
-              onValueChange={(id) => setTrackB(seedTracks.find((t) => t.id === id) || null)}
+              onValueChange={(id) => setTrackB(tracks.find((t) => t.id === id) || null)}
             >
               <SelectTrigger className="bg-muted/50">
                 <SelectValue placeholder="Select track" />
               </SelectTrigger>
               <SelectContent>
-                {seedTracks.map((track) => (
+                {tracks.map((track) => (
                   <SelectItem key={track.id} value={track.id}>
                     <span className="truncate">{track.title}</span>
                   </SelectItem>
@@ -312,9 +313,13 @@ export default function ComparePage() {
             </p>
           </div>
         )}
-      </main>
+        </main>
 
-      <BottomNav />
+        {/* Bottom navigation - Mobile only */}
+        <div className="lg:hidden">
+          <BottomNav />
+        </div>
+      </div>
     </div>
   );
 }

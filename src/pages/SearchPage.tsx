@@ -4,99 +4,95 @@ import { BottomNav } from '@/components/BottomNav';
 import { ChordBadge } from '@/components/ChordBadge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { seedTracks, progressionArchetypes } from '@/data/seedTracks';
+import { progressionArchetypes } from '@/data/seedTracks';
 import { Track } from '@/types';
 import { Search, Music, TrendingUp, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTrackSearch, useChordSearch, useTrendingTracks } from '@/hooks/api/useTracks';
 
 export default function SearchPage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'song' | 'chord'>('song');
-  const [results, setResults] = useState<Track[]>([]);
+
+  const chordQuery = query
+    .toUpperCase()
+    .split(/[-–—,\s]+/)
+    .map((c) => c.trim())
+    .filter(Boolean);
+
+  const { data: songResults = [], isLoading: songLoading } = useTrackSearch(
+    query,
+    searchMode === 'song' && !!query
+  );
+  const { data: chordResults = [], isLoading: chordLoading } = useChordSearch(
+    chordQuery,
+    searchMode === 'chord' && !!query
+  );
+  const { data: trending = [] } = useTrendingTracks(8);
+
+  const results: Track[] = searchMode === 'song' ? songResults : chordResults;
+  const isSearching = searchMode === 'song' ? songLoading : chordLoading;
 
   const handleSearch = () => {
-    if (!query.trim()) {
-      setResults([]);
-      return;
-    }
-
-    if (searchMode === 'song') {
-      // Search by song/artist
-      const filtered = seedTracks.filter(
-        (t) =>
-          t.title.toLowerCase().includes(query.toLowerCase()) ||
-          t.artist.toLowerCase().includes(query.toLowerCase())
-      );
-      setResults(filtered);
-    } else {
-      // Search by chord progression
-      const chords = query
-        .toUpperCase()
-        .split(/[-–—,\s]+/)
-        .map((c) => c.trim())
-        .filter(Boolean);
-      
-      const filtered = seedTracks.filter((t) => {
-        if (!t.progression_roman) return false;
-        const progression = t.progression_roman.map((c) => c.toUpperCase());
-        return chords.every((chord) => 
-          progression.includes(chord) || progression.includes(chord.toLowerCase())
-        );
-      });
-      setResults(filtered);
-    }
+    if (!query.trim()) return;
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-40 glass-strong safe-top">
-        <div className="px-4 py-4 max-w-lg mx-auto space-y-3">
-          <h1 className="text-xl font-bold">Search</h1>
-          
-          {/* Search mode toggle */}
-          <div className="flex gap-2">
-            <Button
-              variant={searchMode === 'song' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSearchMode('song')}
-              className="flex-1"
-            >
-              <Music className="w-4 h-4 mr-1.5" />
-              Song / Artist
-            </Button>
-            <Button
-              variant={searchMode === 'chord' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSearchMode('chord')}
-              className="flex-1"
-            >
-              <TrendingUp className="w-4 h-4 mr-1.5" />
-              Chord Progression
-            </Button>
-          </div>
+    <div className="min-h-screen bg-background flex">
+      {/* Side navigation - Desktop only */}
+      <div className="hidden lg:block">
+        <BottomNav />
+      </div>
 
-          {/* Search input */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder={
-                searchMode === 'song'
-                  ? 'Search songs or artists...'
-                  : 'e.g., vi-IV-I-V or I-V-vi-IV'
-              }
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              className="pl-10 bg-muted/50"
-            />
-          </div>
-        </div>
-      </header>
+      <div className="flex-1 pb-24 lg:pb-8">
+        {/* Header */}
+        <header className="sticky top-0 z-40 glass-strong safe-top">
+          <div className="px-4 py-4 max-w-4xl lg:mx-auto space-y-3">
+            <h1 className="text-xl lg:text-2xl font-bold">Search</h1>
+            
+            {/* Search mode toggle */}
+            <div className="flex gap-2">
+              <Button
+                variant={searchMode === 'song' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSearchMode('song')}
+                className="flex-1 lg:flex-initial"
+              >
+                <Music className="w-4 h-4 mr-1.5" />
+                Song / Artist
+              </Button>
+              <Button
+                variant={searchMode === 'chord' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSearchMode('chord')}
+                className="flex-1 lg:flex-initial"
+              >
+                <TrendingUp className="w-4 h-4 mr-1.5" />
+                Chord Progression
+              </Button>
+            </div>
 
-      {/* Content */}
-      <main className="px-4 py-4 max-w-lg mx-auto space-y-6">
+            {/* Search input */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder={
+                  searchMode === 'song'
+                    ? 'Search songs or artists...'
+                    : 'e.g., vi-IV-I-V or I-V-vi-IV'
+                }
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                className="pl-10 bg-muted/50"
+              />
+            </div>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="px-4 py-4 max-w-4xl lg:mx-auto space-y-6">
         {/* Quick chord searches */}
         {searchMode === 'chord' && !query && (
           <section>
@@ -140,14 +136,14 @@ export default function SearchPage() {
             <h2 className="text-sm font-semibold text-muted-foreground mb-3">
               Results ({results.length})
             </h2>
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {results.map((track, index) => (
                 <motion.div
                   key={track.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="p-4 glass rounded-xl"
+                  className="p-4 glass rounded-xl hover:bg-muted/50 transition-colors cursor-pointer"
                 >
                   <div className="flex gap-4">
                     {track.cover_url && (
@@ -178,7 +174,7 @@ export default function SearchPage() {
         )}
 
         {/* No results */}
-        {query && results.length === 0 && (
+        {query && !isSearching && results.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No results found</p>
             <p className="text-sm text-muted-foreground mt-1">
@@ -194,13 +190,13 @@ export default function SearchPage() {
               Trending Tracks
             </h2>
             <div className="space-y-2">
-              {seedTracks.slice(0, 5).map((track, index) => (
+              {trending.map((track, index) => (
                 <motion.div
                   key={track.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="p-4 glass rounded-xl"
+                  className="p-4 glass rounded-xl hover:bg-muted/50 transition-colors cursor-pointer"
                 >
                   <div className="flex gap-4">
                     <div className="flex items-center justify-center w-8 text-lg font-bold text-muted-foreground">
@@ -227,7 +223,10 @@ export default function SearchPage() {
         )}
       </main>
 
-      <BottomNav />
+      {/* Bottom navigation - Mobile only */}
+      <div className="lg:hidden">
+        <BottomNav />
+      </div>
     </div>
   );
 }

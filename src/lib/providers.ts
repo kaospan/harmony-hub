@@ -1,5 +1,8 @@
 // Music provider utilities and link generation
 
+import { Track, ProviderLink as TrackProviderLink } from '@/types';
+import { toast } from 'sonner';
+
 export type MusicProvider = 'spotify' | 'youtube' | 'apple_music' | 'deezer' | 'soundcloud' | 'amazon_music';
 
 export interface ProviderLink {
@@ -9,6 +12,7 @@ export interface ProviderLink {
   webUrl: string;
   appUrl?: string;
   color: string;
+  trackId: string;
 }
 
 export interface TrackProviderInfo {
@@ -21,6 +25,7 @@ export interface TrackProviderInfo {
   deezerId?: string;
   soundcloudId?: string;
   amazonMusicId?: string;
+  providerLinks?: TrackProviderLink[];
 }
 
 // Generate Spotify URLs from track ID
@@ -37,9 +42,26 @@ export function generateYoutubeLink(youtubeId: string): string {
 }
 
 // Get all available provider links for a track
-export function getProviderLinks(track: TrackProviderInfo): ProviderLink[] {
+export function getProviderLinks(track: TrackProviderInfo | Track): ProviderLink[] {
   const links: ProviderLink[] = [];
 
+  // Try to use providerLinks array first (from database)
+  if ('providerLinks' in track && track.providerLinks && track.providerLinks.length > 0) {
+    return track.providerLinks.map((link) => {
+      const providerInfo = PROVIDER_INFO[link.provider];
+      return {
+        provider: link.provider,
+        name: providerInfo.name,
+        icon: providerInfo.icon,
+        webUrl: link.url_web || '',
+        appUrl: link.url_app,
+        color: providerInfo.color,
+        trackId: link.provider_track_id,
+      };
+    }).filter((link) => link.webUrl || link.appUrl);
+  }
+
+  // Fallback to legacy fields
   if (track.spotifyId || track.urlSpotifyWeb) {
     const spotifyLinks = track.spotifyId 
       ? generateSpotifyLinks(track.spotifyId)
@@ -52,6 +74,7 @@ export function getProviderLinks(track: TrackProviderInfo): ProviderLink[] {
       webUrl: spotifyLinks.web,
       appUrl: spotifyLinks.app,
       color: '#1DB954',
+      trackId: track.spotifyId || '',
     });
   }
 
@@ -66,6 +89,7 @@ export function getProviderLinks(track: TrackProviderInfo): ProviderLink[] {
       icon: '▶️',
       webUrl: youtubeUrl,
       color: '#FF0000',
+      trackId: track.youtubeId || '',
     });
   }
 
@@ -75,18 +99,29 @@ export function getProviderLinks(track: TrackProviderInfo): ProviderLink[] {
 // Open provider link (tries app first, falls back to web)
 export function openProviderLink(link: ProviderLink, preferApp = true): void {
   if (preferApp && link.appUrl) {
-    // Try to open app, will fall back to web if app not installed
-    const start = Date.now();
-    window.location.href = link.appUrl;
-    
-    // If still on page after 1.5s, app probably not installed
-    setTimeout(() => {
-      if (Date.now() - start < 2000) {
-        window.open(link.webUrl, '_blank');
-      }
-    }, 1500);
+    // Try to open app
+    try {
+      window.location.href = link.appUrl;
+      
+      // Set timeout to fallback to web if app doesn't open
+      setTimeout(() => {
+        if (document.visibilityState === 'visible' && link.webUrl) {
+          // App didn't open, fallback to web
+          window.open(link.webUrl, '_blank', 'noopener,noreferrer');
+        }
+      }, 1500);
+      
+      return;
+    } catch (error) {
+      console.warn(`Failed to open ${link.provider} app:`, error);
+    }
+  }
+  
+  // Fallback to web URL
+  if (link.webUrl) {
+    window.open(link.webUrl, '_blank', 'noopener,noreferrer');
   } else {
-    window.open(link.webUrl, '_blank');
+    toast.error(`No link available for ${link.name}`);
   }
 }
 

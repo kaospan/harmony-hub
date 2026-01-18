@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { usePlayHistory, usePlayStats } from '@/hooks/api/usePlayEvents';
 import { useProfile, useUserProviders, useSetPreferredProvider } from '@/hooks/api/useProfile';
+import { useUserInteractionStats } from '@/hooks/api/useFeed';
 import { PROVIDER_INFO } from '@/lib/providers';
 import { MusicProvider } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
@@ -52,6 +53,7 @@ export default function ProfilePage() {
   const { data: profile } = useProfile();
   const { data: userProviders = [] } = useUserProviders();
   const { data: playStats } = usePlayStats();
+  const { data: interactionStats } = useUserInteractionStats(user?.id);
   const { data: playHistory = [] } = usePlayHistory({
     limit: 20,
     provider: providerFilter === 'all' ? undefined : providerFilter,
@@ -82,101 +84,116 @@ export default function ProfilePage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-background pb-24">
-        <header className="sticky top-0 z-40 glass-strong safe-top">
-          <div className="px-4 py-4 max-w-lg mx-auto">
-            <h1 className="text-xl font-bold">Profile</h1>
+      <div className="min-h-screen bg-background flex">
+        {/* Side navigation - Desktop only */}
+        <div className="hidden lg:block">
+          <BottomNav />
+        </div>
+
+        <div className="flex-1 pb-24 lg:pb-8">
+          <header className="sticky top-0 z-40 glass-strong safe-top">
+            <div className="px-4 py-4 max-w-4xl lg:mx-auto">
+              <h1 className="text-xl lg:text-2xl font-bold">Profile</h1>
+            </div>
+          </header>
+
+          <main className="px-4 py-8 max-w-4xl lg:mx-auto text-center space-y-6">
+            <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-muted/50">
+              <User className="w-12 h-12 text-muted-foreground" />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-xl lg:text-2xl font-bold">Sign in to see your profile</h2>
+              <p className="text-muted-foreground lg:text-lg">
+                Track your harmonic taste DNA and saved songs
+              </p>
+            </div>
+
+            <Button
+              onClick={() => navigate('/auth')}
+              className="bg-primary hover:bg-primary/90"
+            >
+              Sign in
+            </Button>
+          </main>
+
+          {/* Bottom navigation - Mobile only */}
+          <div className="lg:hidden">
+            <BottomNav />
           </div>
-        </header>
-
-        <main className="px-4 py-8 max-w-lg mx-auto text-center space-y-6">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-muted/50">
-            <User className="w-12 h-12 text-muted-foreground" />
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-xl font-bold">Sign in to see your profile</h2>
-            <p className="text-muted-foreground">
-              Track your harmonic taste DNA and saved songs
-            </p>
-          </div>
-
-          <Button
-            onClick={() => navigate('/auth')}
-            className="bg-primary hover:bg-primary/90"
-          >
-            Sign in
-          </Button>
-        </main>
-
-        <BottomNav />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-40 glass-strong safe-top">
-        <div className="px-4 py-4 max-w-lg mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-bold">Profile</h1>
-          <Button variant="ghost" size="icon" onClick={handleSignOut}>
-            <LogOut className="w-5 h-5" />
-          </Button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background flex">
+      {/* Side navigation - Desktop only */}
+      <div className="hidden lg:block">
+        <BottomNav />
+      </div>
 
-      {/* Content */}
-      <main className="px-4 py-4 max-w-lg mx-auto space-y-6">
-        {/* User info */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-4 p-4 glass rounded-2xl"
-        >
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <span className="text-2xl font-bold text-white">
-              {user.email?.[0].toUpperCase() || 'U'}
-            </span>
+      <div className="flex-1 pb-24 lg:pb-8">
+        {/* Header */}
+        <header className="sticky top-0 z-40 glass-strong safe-top">
+          <div className="px-4 py-4 max-w-4xl lg:mx-auto flex items-center justify-between">
+            <h1 className="text-xl lg:text-2xl font-bold">Profile</h1>
+            <Button variant="ghost" size="icon" onClick={handleSignOut}>
+              <LogOut className="w-5 h-5" />
+            </Button>
           </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="font-bold truncate">{user.email?.split('@')[0]}</h2>
-            <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-          </div>
-        </motion.div>
+        </header>
 
-        {/* Credits */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="p-4 glass rounded-2xl"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-primary" />
-              <span className="font-medium">Credits</span>
-            </div>
-            <span className="text-sm text-muted-foreground">Free tier</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-              <div className="h-full w-1/4 bg-gradient-to-r from-primary to-accent rounded-full" />
-            </div>
-            <span className="text-sm font-medium">25/100</span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            Credits reset monthly. Used for track analysis.
-          </p>
-        </motion.div>
+        {/* Content */}
+        <main className="px-4 py-4 max-w-4xl lg:mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left column - User info and stats */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* User info */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-4 p-4 glass rounded-2xl"
+            >
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <span className="text-2xl font-bold text-white">
+                  {user.email?.[0].toUpperCase() || 'U'}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="font-bold truncate">{user.email?.split('@')[0]}</h2>
+                <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+              </div>
+            </motion.div>
 
-        {/* Taste DNA */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="space-y-4"
-        >
+            {/* Credits */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              className="p-4 glass rounded-2xl"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-primary" />
+                  <span className="font-medium">Credits</span>
+                </div>
+                <span className="text-sm text-muted-foreground">Free tier</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full w-1/4 bg-gradient-to-r from-primary to-accent rounded-full" />
+                </div>
+                <span className="text-sm font-medium">25/100</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Credits reset monthly. Used for track analysis.
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Right column - Taste DNA and Activity */}
+          <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-accent" />
             <h3 className="font-bold">Your Taste DNA</h3>
@@ -513,10 +530,15 @@ export default function ProfilePage() {
             <span className="text-sm font-medium">Saved</span>
             <span className="text-xs text-muted-foreground">0 songs</span>
           </button>
-        </motion.div>
+            </motion.div>
+          </div>
+        </div>
       </main>
 
-      <BottomNav />
+      {/* Bottom navigation - Mobile only */}
+      <div className="lg:hidden">
+        <BottomNav />
+      </div>
     </div>
   );
 }

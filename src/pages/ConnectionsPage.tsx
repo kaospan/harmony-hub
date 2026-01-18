@@ -42,22 +42,32 @@ export default function ConnectionsPage() {
 
   if (!connectionGraph) {
     return (
-      <div className="min-h-screen bg-background pb-24">
-        <header className="sticky top-0 z-40 glass-strong safe-top">
-          <div className="px-4 py-4 max-w-lg mx-auto flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <h1 className="text-xl font-bold">Connections</h1>
+      <div className="min-h-screen bg-background flex">
+        {/* Side navigation - Desktop only */}
+        <div className="hidden lg:block">
+          <BottomNav />
+        </div>
+
+        <div className="flex-1 pb-24 lg:pb-8">
+          <header className="sticky top-0 z-40 glass-strong safe-top">
+            <div className="px-4 py-4 max-w-4xl lg:mx-auto flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <h1 className="text-xl lg:text-2xl font-bold">Connections</h1>
+            </div>
+          </header>
+
+          <main className="px-4 py-8 max-w-4xl lg:mx-auto text-center">
+            <Music className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">Track not found</p>
+          </main>
+
+          {/* Bottom navigation - Mobile only */}
+          <div className="lg:hidden">
+            <BottomNav />
           </div>
-        </header>
-
-        <main className="px-4 py-8 max-w-lg mx-auto text-center">
-          <Music className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-          <p className="text-muted-foreground">Track not found</p>
-        </main>
-
-        <BottomNav />
+        </div>
       </div>
     );
   }
@@ -67,18 +77,24 @@ export default function ConnectionsPage() {
   const hasDownstream = downstream.length > 0;
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="sticky top-0 z-40 glass-strong safe-top">
-        <div className="px-4 py-4 max-w-lg mx-auto flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h1 className="text-xl font-bold">Connections</h1>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background flex">
+      {/* Side navigation - Desktop only */}
+      <div className="hidden lg:block">
+        <BottomNav />
+      </div>
 
-      <main className="px-4 py-4 max-w-lg mx-auto space-y-6">
+      <div className="flex-1 pb-24 lg:pb-8">
+        {/* Header */}
+        <header className="sticky top-0 z-40 glass-strong safe-top">
+          <div className="px-4 py-4 max-w-4xl lg:mx-auto flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h1 className="text-xl lg:text-2xl font-bold">Connections</h1>
+          </div>
+        </header>
+
+        <main className="px-4 py-4 max-w-4xl lg:mx-auto space-y-6">
         {/* Main Track */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -263,7 +279,10 @@ export default function ConnectionsPage() {
         )}
       </main>
 
-      <BottomNav />
+      {/* Bottom navigation - Mobile only */}
+      <div className="lg:hidden">
+        <BottomNav />
+      </div>
     </div>
   );
 }

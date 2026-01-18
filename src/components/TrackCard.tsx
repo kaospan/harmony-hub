@@ -114,7 +114,7 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: isActive ? 1 : 0.5 }}
-      className="relative w-full h-full flex flex-col"
+      className="relative w-full h-full flex flex-col lg:flex-row"
     >
       {/* Hidden audio element for preview playback */}
       {track.preview_url && (
@@ -126,8 +126,8 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
         />
       )}
 
-      {/* Background with cover art */}
-      <div className="absolute inset-0 z-0">
+      {/* Background with cover art - Desktop left side */}
+      <div className="absolute inset-0 lg:relative lg:w-1/2 lg:rounded-3xl lg:overflow-hidden z-0">
         {track.cover_url ? (
           <>
             <img
@@ -135,21 +135,21 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
               alt=""
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-background/40" />
+            <div className="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-background via-background/80 to-background/40" />
           </>
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-secondary to-background" />
         )}
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 flex-1 flex flex-col justify-end p-6 pb-8 space-y-4">
+      {/* Content - Desktop right side */}
+      <div className="relative z-10 flex-1 flex flex-col justify-end lg:justify-center p-6 lg:p-8 pb-8 space-y-4 lg:space-y-6">
         {/* Track info */}
         <div className="space-y-2">
           <motion.h2
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="text-2xl font-bold text-foreground line-clamp-2"
+            className="text-2xl lg:text-4xl xl:text-5xl font-bold text-foreground line-clamp-2"
           >
             {track.title}
           </motion.h2>
@@ -157,7 +157,7 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.05 }}
-            className="text-lg text-muted-foreground"
+            className="text-lg lg:text-xl xl:text-2xl text-muted-foreground"
           >
             {track.artist}
           </motion.p>
@@ -168,18 +168,18 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 lg:gap-3"
         >
           <Button
             variant="outline"
             size="lg"
             onClick={handlePlayPause}
-            className="gap-2 glass border-white/20 hover:bg-white/10"
+            className="gap-2 glass border-white/20 hover:bg-white/10 text-sm lg:text-base"
           >
             {isPlaying ? (
-              <Pause className="w-5 h-5" />
+              <Pause className="w-5 h-5 lg:w-6 lg:h-6" />
             ) : (
-              <Play className="w-5 h-5" />
+              <Play className="w-5 h-5 lg:w-6 lg:h-6" />
             )}
             {isPlaying ? 'Pause' : track.preview_url ? 'Play Preview' : 'Listen'}
           </Button>
@@ -187,10 +187,10 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
           <Button
             variant="ghost"
             size="icon"
-            className="glass border-white/20 hover:bg-white/10"
+            className="glass border-white/20 hover:bg-white/10 lg:h-11 lg:w-11"
             onClick={() => setShowStreamingLinks(!showStreamingLinks)}
           >
-            <ChevronDown className={cn('w-5 h-5 transition-transform', showStreamingLinks && 'rotate-180')} />
+            <ChevronDown className={cn('w-5 h-5 lg:w-6 lg:h-6 transition-transform', showStreamingLinks && 'rotate-180')} />
           </Button>
         </motion.div>
 
@@ -243,7 +243,7 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="flex items-center justify-between pt-4"
+          className="flex items-center justify-between lg:justify-start lg:gap-4 pt-4"
         >
           {/* Skip */}
           <ActionButton

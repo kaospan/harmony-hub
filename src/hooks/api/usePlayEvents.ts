@@ -1,16 +1,13 @@
 /**
  * React hooks for play events tracking
  * 
- * NOTE: These hooks are stubs until the play_events table is created.
- * For MVP, we track plays via user_interactions table instead.
+ * NOTE: Uses play_events table to track provider opens.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MusicProvider } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-
-type PlayAction = 'open_app' | 'open_web' | 'preview';
+import { recordPlayEvent, fetchPlayHistory, fetchPlayStats, PlayAction } from '@/api/playEvents';
 
 interface RecordPlayEventParams {
   track_id: string;
@@ -40,34 +37,14 @@ export function useRecordPlayEvent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (params: RecordPlayEventParams): Promise<PlayEventData> => {
-      // Record as interaction instead until play_events table exists
-      if (user) {
-        const { error } = await supabase
-          .from('user_interactions')
-          .insert({
-            user_id: user.id,
-            track_id: params.track_id,
-            interaction_type: `play_${params.action}`,
-          });
-        
-        if (error) console.warn('Failed to record play interaction:', error);
-      }
-
-      // Return mock play event data
-      return {
-        id: crypto.randomUUID(),
-        user_id: user?.id,
-        track_id: params.track_id,
-        provider: params.provider,
-        action: params.action,
-        played_at: new Date().toISOString(),
-        context: params.context,
-      };
-    },
+    mutationFn: async (params: RecordPlayEventParams): Promise<PlayEventData> =>
+      recordPlayEvent({
+        ...params,
+        user_id: user?.id ?? null,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['play-history'] });
-      queryClient.invalidateQueries({ queryKey: ['user-interactions'] });
+      queryClient.invalidateQueries({ queryKey: ['play-stats'] });
     },
   });
 }
@@ -92,35 +69,7 @@ export function usePlayHistory(params: PlayHistoryParams = {}) {
     queryKey: ['play-history', user?.id, limit],
     queryFn: async (): Promise<PlayEventData[]> => {
       if (!user) return [];
-
-      const { data, error } = await supabase
-        .from('user_interactions')
-        .select(`
-          id,
-          user_id,
-          track_id,
-          interaction_type,
-          created_at
-        `)
-        .eq('user_id', user.id)
-        .like('interaction_type', 'play_%')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      if (error) {
-        console.warn('Failed to fetch play history:', error);
-        return [];
-      }
-
-      // Map interactions to play event shape
-      return (data || []).map(row => ({
-        id: row.id,
-        user_id: row.user_id,
-        track_id: row.track_id,
-        provider: 'spotify' as const,
-        action: row.interaction_type.replace('play_', ''),
-        played_at: row.created_at,
-      }));
+      return fetchPlayHistory(user.id, limit);
     },
     enabled: !!user,
   });
@@ -136,18 +85,7 @@ export function usePlayStats() {
     queryKey: ['play-stats', user?.id],
     queryFn: async () => {
       if (!user) return null;
-
-      const { count } = await supabase
-        .from('user_interactions')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .like('interaction_type', 'play_%');
-
-      return {
-        totalPlays: count || 0,
-        providerCounts: {} as Record<string, number>,
-        recentPlays: 0,
-      };
+      return fetchPlayStats(user.id);
     },
     enabled: !!user,
   });
