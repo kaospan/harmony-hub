@@ -48,7 +48,32 @@ export function useFeed(limit = 50) {
       if (error) throw error;
 
       // Map to Track type
-      const tracks: Track[] = (data || []).map((item: any) => {
+      const tracks: Track[] = (data || []).map((item: {
+        tracks: {
+          id: string;
+          title: string;
+          artist: string;
+          album?: string | null;
+          cover_url?: string | null;
+          detected_key?: string | null;
+          detected_mode?: string | null;
+          progression_roman?: string[] | null;
+          loop_length_bars?: number | null;
+          cadence_type?: string | null;
+          confidence_score?: number | null;
+          energy?: number | null;
+          danceability?: number | null;
+          valence?: number | null;
+          preview_url?: string | null;
+          spotify_id?: string | null;
+          youtube_id?: string | null;
+          url_spotify_web?: string | null;
+          url_spotify_app?: string | null;
+          url_youtube?: string | null;
+          duration_ms?: number | null;
+          isrc?: string | null;
+        };
+      }) => {
         const track = item.tracks;
         return {
           id: track.id,

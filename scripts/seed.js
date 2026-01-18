@@ -7,7 +7,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { seedTracksWithProviders } from '../src/data/seedTracksWithProviders';
+import { seedTracksData } from './seedData.js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://fteefcvikpowcewuqqez.supabase.co';
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -187,12 +187,12 @@ async function seed() {
   console.log('📀 Inserting tracks...');
   const insertedTracks = [];
   
-  for (let i = 0; i < seedTracksWithProviders.length; i++) {
-    const track = await insertTrack(seedTracksWithProviders[i], i);
+  for (let i = 0; i < seedTracksData.length; i++) {
+    const track = await insertTrack(seedTracksData[i], i);
     if (track) {
       insertedTracks.push(track);
       if ((i + 1) % 10 === 0) {
-        console.log(`   ${i + 1}/${seedTracksWithProviders.length} tracks inserted`);
+        console.log(`   ${i + 1}/${seedTracksData.length} tracks inserted`);
       }
     }
   }
