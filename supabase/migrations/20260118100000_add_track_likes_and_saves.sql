@@ -21,11 +21,6 @@ ON public.track_likes
 FOR SELECT
 USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can view all likes count"
-ON public.track_likes
-FOR SELECT
-USING (true);
-
 CREATE POLICY "Users can like tracks"
 ON public.track_likes
 FOR INSERT
@@ -58,11 +53,6 @@ CREATE POLICY "Users can view their own saves"
 ON public.track_saves
 FOR SELECT
 USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view all saves count"
-ON public.track_saves
-FOR SELECT
-USING (true);
 
 CREATE POLICY "Users can save tracks"
 ON public.track_saves

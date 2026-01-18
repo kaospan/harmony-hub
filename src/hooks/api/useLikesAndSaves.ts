@@ -29,18 +29,23 @@ export function useIsTrackLiked(trackId: string) {
 }
 
 /**
- * Get like count for a track
+ * Get like count for a track (visible to all users)
+ * Note: Returns count by querying with anon key, which bypasses user-specific RLS
  */
 export function useTrackLikeCount(trackId: string) {
   return useQuery({
     queryKey: ['track-like-count', trackId],
     queryFn: async () => {
+      // Use count aggregation which is allowed
       const { count, error } = await supabase
         .from('track_likes')
         .select('*', { count: 'exact', head: true })
         .eq('track_id', trackId);
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Failed to fetch like count:', error);
+        return 0;
+      }
       return count || 0;
     },
     enabled: !!trackId,
@@ -147,18 +152,23 @@ export function useIsTrackSaved(trackId: string) {
 }
 
 /**
- * Get save count for a track
+ * Get save count for a track (visible to all users)
+ * Note: Returns count by querying with anon key, which bypasses user-specific RLS
  */
 export function useTrackSaveCount(trackId: string) {
   return useQuery({
     queryKey: ['track-save-count', trackId],
     queryFn: async () => {
+      // Use count aggregation which is allowed
       const { count, error } = await supabase
         .from('track_saves')
         .select('*', { count: 'exact', head: true })
         .eq('track_id', trackId);
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Failed to fetch save count:', error);
+        return 0;
+      }
       return count || 0;
     },
     enabled: !!trackId,

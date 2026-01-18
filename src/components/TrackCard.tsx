@@ -154,7 +154,7 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
       appUrl = track.url_spotify_app;
     } else if (provider === 'youtube') {
       url = track.url_youtube;
-      appUrl = `vnd.youtube://watch?v=${track.youtube_id}`;
+      appUrl = track.youtube_id ? `youtube://watch?v=${track.youtube_id}` : undefined;
     }
 
     if (!url) {
@@ -163,13 +163,14 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
     }
 
     if (preferApp && appUrl) {
-      // Try to open app, will fall back to web if app not installed
-      const start = Date.now();
+      // Try to open app
       window.location.href = appUrl;
       
-      // If still on page after 1.5s, app probably not installed
+      // Fallback to web if app doesn't open
+      // The app will take over if installed, otherwise browser stays on page
       setTimeout(() => {
-        if (Date.now() - start < 2000) {
+        // Check if user is still on page (app didn't open)
+        if (document.hasFocus()) {
           window.open(url, '_blank');
         }
       }, 1500);
