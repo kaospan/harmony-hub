@@ -15,6 +15,10 @@ export interface PlayerState {
   autoplay: boolean;
   /** Start time in seconds for seeking (e.g., section navigation) */
   seekToSec: number | null;
+  /** Currently active section ID */
+  currentSectionId: string | null;
+  /** Whether playback is active */
+  isPlaying: boolean;
 }
 
 type OpenPlayerPayload = {
@@ -35,6 +39,10 @@ interface PlayerContextValue extends PlayerState {
   seekTo: (sec: number) => void;
   /** Clear seekToSec after the player has performed the seek */
   clearSeek: () => void;
+  /** Set the currently active section */
+  setCurrentSection: (sectionId: string | null) => void;
+  /** Set playback state */
+  setIsPlaying: (playing: boolean) => void;
 }
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
@@ -47,6 +55,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     providerTrackId: null,
     autoplay: false,
     seekToSec: null,
+    currentSectionId: null,
+    isPlaying: false,
   });
 
   const seekTo = useCallback((sec: number) => {
@@ -57,10 +67,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, seekToSec: null }));
   }, []);
 
+  const setCurrentSection = useCallback((sectionId: string | null) => {
+    setState((prev) => ({ ...prev, currentSectionId: sectionId }));
+  }, []);
+
+  const setIsPlaying = useCallback((playing: boolean) => {
+    setState((prev) => ({ ...prev, isPlaying: playing }));
+  }, []);
+
   const value = useMemo<PlayerContextValue>(() => ({
     ...state,
     seekTo,
     clearSeek,
+    setCurrentSection,
+    setIsPlaying,
     openPlayer: (payload) => {
       setState((prev) => ({
         open: true,
@@ -106,7 +126,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
       }
     },
-  }), [state, seekTo, clearSeek]);
+  }), [state, seekTo, clearSeek, setCurrentSection, setIsPlaying]);
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }
