@@ -129,23 +129,23 @@ export function useNearbyListeners(trackId?: string, artist?: string) {
     queryFn: async () => {
       if (!user || !userLocation?.sharing_enabled) return [];
 
-      // Get all users who share their location
+      // Get all users who share their location (using fuzzy coordinates for privacy)
       const { data: locations, error: locError } = await supabase
         .from('user_locations')
-        .select('*')
+        .select('user_id, latitude_fuzzy, longitude_fuzzy')
         .eq('sharing_enabled', true)
         .neq('user_id', user.id);
 
       if (locError) throw locError;
 
-      // Filter by distance
+      // Filter by distance using fuzzy coordinates (privacy-preserving)
       const nearbyUserIds = (locations || [])
         .filter((loc: any) => {
           const distance = calculateDistance(
             userLocation.latitude,
             userLocation.longitude,
-            Number(loc.latitude),
-            Number(loc.longitude)
+            Number(loc.latitude_fuzzy),
+            Number(loc.longitude_fuzzy)
           );
           return distance <= userLocation.radius_km;
         })
@@ -154,8 +154,8 @@ export function useNearbyListeners(trackId?: string, artist?: string) {
           distance_km: calculateDistance(
             userLocation.latitude,
             userLocation.longitude,
-            Number(loc.latitude),
-            Number(loc.longitude)
+            Number(loc.latitude_fuzzy),
+            Number(loc.longitude_fuzzy)
           ),
         }));
 
