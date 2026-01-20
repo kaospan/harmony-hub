@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { BottomNav } from '@/components/BottomNav';
 import { ChordBadge } from '@/components/ChordBadge';
@@ -6,29 +6,28 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { seedTracks, progressionArchetypes } from '@/data/seedTracks';
 import { Track } from '@/types';
-import { Search, Music, TrendingUp, ArrowRight } from 'lucide-react';
+import { Search, Music, TrendingUp, ArrowRight, Play, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { openProviderLink, getProviderLinks } from '@/lib/providers';
 
 export default function SearchPage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'song' | 'chord'>('song');
-  const [results, setResults] = useState<Track[]>([]);
 
-  const handleSearch = () => {
-    if (!query.trim()) {
-      setResults([]);
-      return;
-    }
+  // Real-time search results
+  const results = useMemo(() => {
+    if (!query.trim()) return [];
 
     if (searchMode === 'song') {
       // Search by song/artist
-      const filtered = seedTracks.filter(
+      const lowerQuery = query.toLowerCase();
+      return seedTracks.filter(
         (t) =>
-          t.title.toLowerCase().includes(query.toLowerCase()) ||
-          t.artist.toLowerCase().includes(query.toLowerCase())
+          t.title.toLowerCase().includes(lowerQuery) ||
+          t.artist?.toLowerCase().includes(lowerQuery) ||
+          t.album?.toLowerCase().includes(lowerQuery)
       );
-      setResults(filtered);
     } else {
       // Search by chord progression
       const chords = query
@@ -37,14 +36,32 @@ export default function SearchPage() {
         .map((c) => c.trim())
         .filter(Boolean);
       
-      const filtered = seedTracks.filter((t) => {
+      return seedTracks.filter((t) => {
         if (!t.progression_roman) return false;
         const progression = t.progression_roman.map((c) => c.toUpperCase());
         return chords.every((chord) => 
           progression.includes(chord) || progression.includes(chord.toLowerCase())
         );
       });
-      setResults(filtered);
+    }
+  }, [query, searchMode]);
+
+  const handlePlayOnProvider = (track: Track) => {
+    const links = getProviderLinks({
+      spotifyId: track.spotify_id,
+      youtubeId: track.youtube_id,
+      urlSpotifyWeb: track.url_spotify_web,
+      urlSpotifyApp: track.url_spotify_app,
+      urlYoutube: track.url_youtube,
+    });
+    
+    // Prefer Spotify, then YouTube
+    const spotifyLink = links.find(l => l.provider === 'spotify');
+    const youtubeLink = links.find(l => l.provider === 'youtube');
+    const link = spotifyLink || youtubeLink || links[0];
+    
+    if (link) {
+      openProviderLink(link, true); // Try app first
     }
   };
 
@@ -88,8 +105,8 @@ export default function SearchPage() {
               }
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               className="pl-10 bg-muted/50"
+              autoFocus
             />
           </div>
         </div>
@@ -110,10 +127,7 @@ export default function SearchPage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  onClick={() => {
-                    setQuery(archetype.progression.join('-'));
-                    handleSearch();
-                  }}
+                  onClick={() => setQuery(archetype.progression.join('-'))}
                   className="w-full p-4 glass rounded-xl text-left group hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -146,7 +160,7 @@ export default function SearchPage() {
                   key={track.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: index * 0.03 }}
                   className="p-4 glass rounded-xl"
                 >
                   <div className="flex gap-4">
@@ -154,7 +168,7 @@ export default function SearchPage() {
                       <img
                         src={track.cover_url}
                         alt=""
-                        className="w-16 h-16 rounded-lg object-cover"
+                        className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
                       />
                     )}
                     <div className="flex-1 min-w-0">
@@ -170,6 +184,28 @@ export default function SearchPage() {
                         </div>
                       )}
                     </div>
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handlePlayOnProvider(track)}
+                        title="Play on streaming service"
+                      >
+                        <Play className="w-4 h-4" />
+                      </Button>
+                      {track.url_youtube && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => window.open(track.url_youtube!, '_blank')}
+                          title="Open on YouTube"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -180,7 +216,7 @@ export default function SearchPage() {
         {/* No results */}
         {query && results.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No results found</p>
+            <p className="text-muted-foreground">No results found for "{query}"</p>
             <p className="text-sm text-muted-foreground mt-1">
               Try a different search term
             </p>
@@ -194,12 +230,12 @@ export default function SearchPage() {
               Trending Tracks
             </h2>
             <div className="space-y-2">
-              {seedTracks.slice(0, 5).map((track, index) => (
+              {seedTracks.slice(0, 10).map((track, index) => (
                 <motion.div
                   key={track.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  transition={{ delay: index * 0.03 }}
                   className="p-4 glass rounded-xl"
                 >
                   <div className="flex gap-4">
@@ -219,6 +255,15 @@ export default function SearchPage() {
                         {track.artist}
                       </p>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 flex-shrink-0"
+                      onClick={() => handlePlayOnProvider(track)}
+                      title="Play on streaming service"
+                    >
+                      <Play className="w-4 h-4" />
+                    </Button>
                   </div>
                 </motion.div>
               ))}

@@ -1,11 +1,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Bookmark, X, Sparkles, Waves, Play, Pause, ChevronDown, ExternalLink, Music } from 'lucide-react';
+import { Heart, Bookmark, X, Sparkles, Waves, Play, Pause, ChevronDown, ExternalLink, Music, Youtube } from 'lucide-react';
 import { HarmonyCard } from './HarmonyCard';
 import { CommentsSheet } from './CommentsSheet';
 import { NearbyListenersSheet } from './NearbyListenersSheet';
 import { ShareSheet } from './ShareSheet';
 import { AudioPreview } from './AudioPreview';
 import { StreamingLinks } from './StreamingLinks';
+import { YouTubeEmbed } from './YouTubeEmbed';
+import { SongSections } from './SongSections';
 import { Button } from '@/components/ui/button';
 import { Track, InteractionType } from '@/types';
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -23,12 +25,22 @@ interface TrackCardProps {
   isActive: boolean;
   onInteraction: (type: InteractionType) => void;
   interactions?: Set<InteractionType>;
+  onPipModeActivate?: (videoId: string, title: string) => void;
+  isPipActive?: boolean;
 }
 
-export function TrackCard({ track, isActive, onInteraction, interactions = new Set() }: TrackCardProps) {
+export function TrackCard({ 
+  track, 
+  isActive, 
+  onInteraction, 
+  interactions = new Set(),
+  onPipModeActivate,
+  isPipActive = false,
+}: TrackCardProps) {
   const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showStreamingLinks, setShowStreamingLinks] = useState(false);
+  const [showYouTubeEmbed, setShowYouTubeEmbed] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const playStartTimeRef = useRef<number | null>(null);
   const recordActivity = useRecordListeningActivity();
@@ -169,9 +181,22 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
         />
       )}
 
-      {/* Background with cover art */}
+      {/* Background with cover art or YouTube embed */}
       <div className="absolute inset-0 z-0">
-        {track.cover_url ? (
+        {showYouTubeEmbed && track.youtube_id && !isPipActive ? (
+          // YouTube embed as background when Watch button is active
+          <div className="w-full h-full">
+            <iframe
+              src={`https://www.youtube.com/embed/${track.youtube_id}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`}
+              title={`${track.title} - ${track.artist}`}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent pointer-events-none" />
+          </div>
+        ) : track.cover_url ? (
           <>
             <img
               src={track.cover_url}
@@ -206,6 +231,21 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
           </motion.p>
         </div>
 
+        {/* Song Sections - shows when not playing YouTube */}
+        {track.sections && track.sections.length > 0 && track.youtube_id && !showYouTubeEmbed && (
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.08 }}
+          >
+            <SongSections
+              sections={track.sections}
+              youtubeId={track.youtube_id}
+              title={`${track.title} - ${track.artist}`}
+            />
+          </motion.div>
+        )}
+
         {/* Play button and streaming links */}
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
@@ -226,6 +266,24 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
             )}
             {isPlaying ? 'Pause' : track.preview_url ? 'Play Preview' : 'Listen'}
           </Button>
+
+          {/* YouTube embed button - inline play without leaving the app */}
+          {track.youtube_id && (
+            <Button
+              variant={showYouTubeEmbed ? 'default' : 'outline'}
+              size="lg"
+              onClick={() => setShowYouTubeEmbed(!showYouTubeEmbed)}
+              className={cn(
+                'gap-2',
+                showYouTubeEmbed
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'glass border-white/20 hover:bg-white/10'
+              )}
+            >
+              <Youtube className="w-5 h-5" />
+              {showYouTubeEmbed ? 'Hide' : 'Watch'}
+            </Button>
+          )}
 
           <Button
             variant="ghost"

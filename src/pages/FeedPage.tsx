@@ -1,14 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrackCard } from '@/components/TrackCard';
 import { FeedSkeleton } from '@/components/FeedSkeleton';
 import { BottomNav } from '@/components/BottomNav';
+import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { useAuth } from '@/hooks/useAuth';
-import { InteractionType, Track } from '@/types';
+import { InteractionType } from '@/types';
 import { ChevronUp, ChevronDown, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useFeedTracks } from '@/hooks/api/useTracks';
+
 
 export default function FeedPage() {
   const { user, loading: authLoading } = useAuth();
@@ -17,6 +19,9 @@ export default function FeedPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [interactions, setInteractions] = useState<Map<string, Set<InteractionType>>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // PiP state - managed at feed level so it persists across track changes
+  const [pipVideo, setPipVideo] = useState<{ videoId: string; title: string } | null>(null);
 
   const handleInteraction = (type: InteractionType) => {
     if (!user) {
@@ -47,21 +52,25 @@ export default function FeedPage() {
     }
   };
 
-  const goToNext = () => {
+  const goToNext = useCallback(() => {
     if (currentIndex < tracks.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     }
-  };
+  }, [currentIndex, tracks.length]);
 
-  const goToPrevious = () => {
+  const goToPrevious = useCallback(() => {
     if (currentIndex > 0) {
       setCurrentIndex((prev) => prev - 1);
     }
-  };
+  }, [currentIndex]);
 
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't navigate if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
       if (e.key === 'ArrowDown' || e.key === 'j') {
         goToNext();
       } else if (e.key === 'ArrowUp' || e.key === 'k') {
@@ -71,7 +80,7 @@ export default function FeedPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex]);
+  }, [goToNext, goToPrevious]);
 
   // Handle touch/scroll with improved swipe detection
   useEffect(() => {
@@ -80,25 +89,23 @@ export default function FeedPage() {
 
     let startY = 0;
     let startX = 0;
-    let isDragging = false;
+    let startTime = 0;
 
     const handleTouchStart = (e: TouchEvent) => {
       startY = e.touches[0].clientY;
       startX = e.touches[0].clientX;
-      isDragging = true;
+      startTime = Date.now();
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      if (!isDragging) return;
-      isDragging = false;
-
       const endY = e.changedTouches[0].clientY;
       const endX = e.changedTouches[0].clientX;
       const diffY = startY - endY;
-      const diffX = startX - endX;
+      const diffX = Math.abs(startX - endX);
+      const timeDiff = Date.now() - startTime;
 
-      // Only trigger vertical swipe if vertical movement > horizontal
-      if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 50) {
+      // Swipe threshold: at least 50px vertical, mostly vertical (not horizontal), completed within 500ms
+      if (Math.abs(diffY) > 50 && Math.abs(diffY) > diffX && timeDiff < 500) {
         if (diffY > 0) {
           goToNext();
         } else {
@@ -114,7 +121,12 @@ export default function FeedPage() {
       container.removeEventListener('touchstart', handleTouchStart);
       container.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [currentIndex]);
+  }, [goToNext, goToPrevious]);
+
+  // Handle entering PiP mode from TrackCard
+  const handlePipModeActivate = (videoId: string, title: string) => {
+    setPipVideo({ videoId, title });
+  };
 
   if (authLoading || tracksLoading) {
     return (
@@ -147,7 +159,7 @@ export default function FeedPage() {
   const currentTrack = tracks[currentIndex];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col" ref={containerRef}>
+    <div className="min-h-screen bg-background flex flex-col touch-pan-y" ref={containerRef}>
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-40 glass-strong safe-top">
         <div className="flex items-center justify-between px-4 py-3 max-w-lg mx-auto">
@@ -211,12 +223,29 @@ export default function FeedPage() {
                   isActive={true}
                   onInteraction={handleInteraction}
                   interactions={interactions.get(currentTrack.id) || new Set()}
+                  onPipModeActivate={handlePipModeActivate}
+                  isPipActive={pipVideo?.videoId === currentTrack.youtube_id}
                 />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </main>
+
+      {/* Picture-in-Picture mini player - persists across track changes */}
+      <AnimatePresence>
+        {pipVideo && (
+          <YouTubeEmbed
+            key={`pip-${pipVideo.videoId}`}
+            videoId={pipVideo.videoId}
+            title={pipVideo.title}
+            onClose={() => setPipVideo(null)}
+            onPipModeChange={(isPip) => {
+              if (!isPip) setPipVideo(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Bottom navigation */}
       <BottomNav />

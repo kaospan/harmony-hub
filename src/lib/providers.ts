@@ -75,18 +75,38 @@ export function getProviderLinks(track: TrackProviderInfo): ProviderLink[] {
 // Open provider link (tries app first, falls back to web)
 export function openProviderLink(link: ProviderLink, preferApp = true): void {
   if (preferApp && link.appUrl) {
-    // Try to open app, will fall back to web if app not installed
-    const start = Date.now();
-    window.location.href = link.appUrl;
+    // Try to open app using a hidden iframe to keep focus on the page
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = link.appUrl;
+    document.body.appendChild(iframe);
     
-    // If still on page after 1.5s, app probably not installed
+    // Clean up iframe after a short delay
     setTimeout(() => {
-      if (Date.now() - start < 2000) {
-        window.open(link.webUrl, '_blank');
+      document.body.removeChild(iframe);
+    }, 2000);
+    
+    // Optional: If app doesn't open, fallback to web (but keep focus)
+    setTimeout(() => {
+      if (document.hasFocus()) {
+        // App didn't open, user is still on page
+        // Open web link in background (for Spotify web player, use iframe approach)
+        if (link.provider === 'spotify') {
+          // For Spotify, we keep it in background without popup
+          const webIframe = document.createElement('iframe');
+          webIframe.style.display = 'none';
+          webIframe.src = link.webUrl;
+          document.body.appendChild(webIframe);
+          setTimeout(() => document.body.removeChild(webIframe), 3000);
+        } else {
+          // For other providers, open in new tab but don't switch focus
+          window.open(link.webUrl, '_blank', 'noopener,noreferrer');
+        }
       }
     }, 1500);
   } else {
-    window.open(link.webUrl, '_blank');
+    // Open web link in new tab
+    window.open(link.webUrl, '_blank', 'noopener,noreferrer');
   }
 }
 

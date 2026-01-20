@@ -59,6 +59,7 @@ async function insertTrack(seedTrack, index) {
       energy: seedTrack.energy,
       danceability: seedTrack.danceability,
       valence: seedTrack.valence,
+      sections: seedTrack.sections ? seedTrack.sections : null,
       external_id: seedTrack.spotify_id || seedTrack.youtube_id || `seed-${index}`,
       provider: seedTrack.spotify_id ? 'spotify' : 'youtube',
       popularity_score: Math.floor(Math.random() * 1000),
