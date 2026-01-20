@@ -7,18 +7,40 @@ import { cn } from '@/lib/utils';
 interface YouTubeEmbedProps {
   videoId: string;
   title?: string;
+  startTime?: number; // Start time in seconds
+  endTime?: number; // End time in seconds
   onClose?: () => void;
   onPipModeChange?: (isPip: boolean) => void;
   className?: string;
 }
 
-export function YouTubeEmbed({ videoId, title, onClose, onPipModeChange, className }: YouTubeEmbedProps) {
+export function YouTubeEmbed({ videoId, title, startTime, endTime, onClose, onPipModeChange, className }: YouTubeEmbedProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPipMode, setIsPipMode] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Build embed URL with parameters for inline playback
-  const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
+  // Build embed URL with parameters for inline playback and timestamps
+  const buildEmbedUrl = () => {
+    const params = new URLSearchParams({
+      autoplay: '1',
+      rel: '0',
+      modestbranding: '1',
+      playsinline: '1',
+      enablejsapi: '1',
+    });
+    
+    if (startTime !== undefined) {
+      params.append('start', Math.floor(startTime).toString());
+    }
+    
+    if (endTime !== undefined) {
+      params.append('end', Math.floor(endTime).toString());
+    }
+    
+    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+  };
+  
+  const embedUrl = buildEmbedUrl();
 
   const togglePipMode = () => {
     const newPipState = !isPipMode;

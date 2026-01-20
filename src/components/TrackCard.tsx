@@ -7,6 +7,7 @@ import { ShareSheet } from './ShareSheet';
 import { AudioPreview } from './AudioPreview';
 import { StreamingLinks } from './StreamingLinks';
 import { YouTubeEmbed } from './YouTubeEmbed';
+import { SongSections } from './SongSections';
 import { Button } from '@/components/ui/button';
 import { Track, InteractionType } from '@/types';
 import { useState, useRef, useEffect, useCallback } from 'react';
@@ -137,9 +138,22 @@ export function TrackCard({
         />
       )}
 
-      {/* Background with cover art */}
+      {/* Background with cover art or YouTube embed */}
       <div className="absolute inset-0 z-0">
-        {track.cover_url ? (
+        {showYouTubeEmbed && track.youtube_id && !isPipActive ? (
+          // YouTube embed as background when Watch button is active
+          <div className="w-full h-full">
+            <iframe
+              src={`https://www.youtube.com/embed/${track.youtube_id}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`}
+              title={`${track.title} - ${track.artist}`}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent pointer-events-none" />
+          </div>
+        ) : track.cover_url ? (
           <>
             <img
               src={track.cover_url}
@@ -174,29 +188,20 @@ export function TrackCard({
           </motion.p>
         </div>
 
-        {/* YouTube Embed Player */}
-        <AnimatePresence>
-          {showYouTubeEmbed && track.youtube_id && !isPipActive && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="mb-4"
-            >
-              <YouTubeEmbed
-                videoId={track.youtube_id}
-                title={`${track.title} - ${track.artist}`}
-                onClose={() => setShowYouTubeEmbed(false)}
-                onPipModeChange={(isPip) => {
-                  if (isPip && onPipModeActivate && track.youtube_id) {
-                    onPipModeActivate(track.youtube_id, `${track.title} - ${track.artist}`);
-                    setShowYouTubeEmbed(false);
-                  }
-                }}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Song Sections - shows when not playing YouTube */}
+        {track.sections && track.sections.length > 0 && track.youtube_id && !showYouTubeEmbed && (
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.08 }}
+          >
+            <SongSections
+              sections={track.sections}
+              youtubeId={track.youtube_id}
+              title={`${track.title} - ${track.artist}`}
+            />
+          </motion.div>
+        )}
 
         {/* Play button and streaming links */}
         <motion.div
