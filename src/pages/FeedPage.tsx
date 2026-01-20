@@ -1,33 +1,32 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrackCard } from '@/components/TrackCard';
 import { FeedSkeleton } from '@/components/FeedSkeleton';
 import { BottomNav } from '@/components/BottomNav';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
-import { seedTracks } from '@/data/seedTracks';
+import { useFeedTracks } from '@/hooks/api/useTracks';
 import { useAuth } from '@/hooks/useAuth';
-import { InteractionType, Track } from '@/types';
-import { ChevronUp, ChevronDown, LogIn } from 'lucide-react';
+import { InteractionType } from '@/types';
+import { ChevronUp, ChevronDown, LogIn, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 
 export default function FeedPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [tracks] = useState<Track[]>(seedTracks);
+  
+  // Use trackService with automatic fallback to seed data
+  const { data: trackResult, isLoading: tracksLoading, error: tracksError } = useFeedTracks(50);
+  const tracks = trackResult?.tracks ?? [];
+  const dataSource = trackResult?.source;
+  
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [interactions, setInteractions] = useState<Map<string, Set<InteractionType>>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
   
   // PiP state - managed at feed level so it persists across track changes
   const [pipVideo, setPipVideo] = useState<{ videoId: string; title: string } | null>(null);
-
-  useEffect(() => {
-    // Simulate initial load
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleInteraction = (type: InteractionType) => {
     if (!user) {
@@ -134,10 +133,23 @@ export default function FeedPage() {
     setPipVideo({ videoId, title });
   };
 
-  if (authLoading || loading) {
+  if (authLoading || tracksLoading) {
     return (
       <div className="min-h-screen bg-background">
         <FeedSkeleton />
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (tracksError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center p-6">
+          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Failed to load tracks</h2>
+          <p className="text-muted-foreground">Please try again later</p>
+        </div>
         <BottomNav />
       </div>
     );
@@ -154,6 +166,9 @@ export default function FeedPage() {
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">
               {currentIndex + 1} / {tracks.length}
+              {dataSource === 'seed' && (
+                <span className="ml-1 text-amber-500" title="Using demo data">•</span>
+              )}
             </span>
             {!user && (
               <Button

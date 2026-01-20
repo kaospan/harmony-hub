@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Music } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { TrackProviderInfo, getProviderLinks, openProviderLink } from '@/lib/providers';
+import { getPreferredProvider, setPreferredProvider } from '@/lib/preferences';
 import { cn } from '@/lib/utils';
 
 interface QuickStreamButtonsProps {
@@ -41,6 +41,15 @@ export function QuickStreamButtons({
   const links = getProviderLinks(track);
   const spotifyLink = links.find(l => l.provider === 'spotify');
   const youtubeLink = links.find(l => l.provider === 'youtube');
+  const preferredProvider = getPreferredProvider();
+
+  const handleClick = (link: typeof spotifyLink, provider: 'spotify' | 'youtube') => {
+    if (link) {
+      // Remember this as the preferred provider
+      setPreferredProvider(provider);
+      openProviderLink(link, provider === 'spotify');
+    }
+  };
 
   const sizeClasses = {
     sm: 'w-8 h-8',
@@ -70,11 +79,12 @@ export function QuickStreamButtons({
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
-          onClick={() => openProviderLink(spotifyLink, true)}
+          onClick={() => handleClick(spotifyLink, 'spotify')}
           className={cn(
             sizeClasses[size],
             'rounded-full flex items-center justify-center transition-all',
-            'bg-[#1DB954] hover:bg-[#1ed760] text-white shadow-lg'
+            'bg-[#1DB954] hover:bg-[#1ed760] text-white shadow-lg',
+            preferredProvider === 'spotify' && 'ring-2 ring-white ring-offset-2 ring-offset-background'
           )}
           title="Open in Spotify"
         >
@@ -82,16 +92,17 @@ export function QuickStreamButtons({
         </motion.button>
       )}
 
-      {/* Apple Music button - uses YouTube as fallback since we don't have Apple links */}
+      {/* YouTube button */}
       {youtubeLink && (
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
-          onClick={() => openProviderLink(youtubeLink, false)}
+          onClick={() => handleClick(youtubeLink, 'youtube')}
           className={cn(
             sizeClasses[size],
             'rounded-full flex items-center justify-center transition-all',
-            'bg-[#FF0000] hover:bg-[#cc0000] text-white shadow-lg'
+            'bg-[#FF0000] hover:bg-[#cc0000] text-white shadow-lg',
+            preferredProvider === 'youtube' && 'ring-2 ring-white ring-offset-2 ring-offset-background'
           )}
           title="Open on YouTube"
         >
