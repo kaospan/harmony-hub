@@ -60,7 +60,15 @@ export function TwoFactorSetup({
       const newSecret = generateSecret();
       setSecret(newSecret);
       // Generate QR code locally (no external API call)
-      generateQRCodeDataUrl(newSecret, userEmail).then(setQrUrl);
+      (async () => {
+        try {
+          const url = await generateQRCodeDataUrl(newSecret, userEmail);
+          setQrUrl(url);
+        } catch (error) {
+          console.error('Failed to generate QR code:', error);
+          toast.error('Failed to generate QR code. Please close and reopen the setup dialog.');
+        }
+      })();
       setBackupCodes(generateBackupCodes());
     }
   }, [isOpen, step, userEmail]);

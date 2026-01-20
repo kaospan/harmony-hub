@@ -11,10 +11,15 @@ CREATE TABLE IF NOT EXISTS public.secure_2fa_secrets (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- NO RLS policies - only service_role can access this table
+-- RLS policies - only service_role can access this table
 -- This is intentional for security
 ALTER TABLE public.secure_2fa_secrets ENABLE ROW LEVEL SECURITY;
 
+-- Allow only the service_role to read and write secure 2FA secrets
+CREATE POLICY secure_2fa_secrets_service_role_only
+  ON public.secure_2fa_secrets
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
 -- Create index for fast lookups
 CREATE INDEX IF NOT EXISTS idx_secure_2fa_secrets_user_id ON public.secure_2fa_secrets(user_id);
 
