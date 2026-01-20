@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,16 +15,39 @@ const authSchema = z.object({
   displayName: z.string().min(2, 'Name must be at least 2 characters').optional(),
 });
 
+const resetSchema = z.object({
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  confirm: z.string(),
+}).refine((data) => data.password === data.confirm, {
+  message: 'Passwords do not match',
+  path: ['confirm'],
+});
+
 export default function AuthPage() {
   const navigate = useNavigate();
-  const { signIn, signUp, user } = useAuth();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [searchParams] = useSearchParams();
+  const { signIn, signUp, requestPasswordReset, updatePassword, user } = useAuth();
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'reset'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Enter reset mode automatically if Supabase sent us back with a recovery token
+  useEffect(() => {
+    if (searchParams.get('type') === 'recovery') {
+      setMode('reset');
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (mode === 'reset' && user?.email) {
+      setEmail(user.email);
+    }
+  }, [mode, user?.email]);
 
   // Redirect if already logged in
   if (user) {
@@ -36,22 +59,41 @@ export default function AuthPage() {
     e.preventDefault();
     setErrors({});
 
-    // Validate
-    const result = authSchema.safeParse({
-      email,
-      password,
-      displayName: mode === 'signup' ? displayName : undefined,
-    });
-
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          fieldErrors[err.path[0] as string] = err.message;
-        }
+    if (mode === 'reset') {
+      const result = resetSchema.safeParse({ password, confirm: confirmPassword });
+      if (!result.success) {
+        const fieldErrors: Record<string, string> = {};
+        result.error.errors.forEach((err) => {
+          if (err.path[0]) {
+            fieldErrors[err.path[0] as string] = err.message;
+          }
+        });
+        setErrors(fieldErrors);
+        return;
+      }
+    } else if (mode === 'forgot') {
+      if (!email) {
+        setErrors({ email: 'Email is required' });
+        return;
+      }
+    } else {
+      // Validate signup/signin
+      const result = authSchema.safeParse({
+        email,
+        password,
+        displayName: mode === 'signup' ? displayName : undefined,
       });
-      setErrors(fieldErrors);
-      return;
+
+      if (!result.success) {
+        const fieldErrors: Record<string, string> = {};
+        result.error.errors.forEach((err) => {
+          if (err.path[0]) {
+            fieldErrors[err.path[0] as string] = err.message;
+          }
+        });
+        setErrors(fieldErrors);
+        return;
+      }
     }
 
     setLoading(true);
@@ -69,7 +111,7 @@ export default function AuthPage() {
         }
         toast.success('Welcome back!');
         navigate('/');
-      } else {
+      } else if (mode === 'signup') {
         const { error } = await signUp(email, password, displayName);
         if (error) {
           if (error.message.includes('already registered')) {
@@ -81,6 +123,22 @@ export default function AuthPage() {
         }
         toast.success('Account created! You can now sign in.');
         navigate('/');
+      } else if (mode === 'forgot') {
+        const { error } = await requestPasswordReset(email);
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        toast.success('Password reset email sent. Check your inbox.');
+        setMode('signin');
+      } else if (mode === 'reset') {
+        const { error } = await updatePassword(password);
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        toast.success('Password updated. You can now sign in.');
+        setMode('signin');
       }
     } finally {
       setLoading(false);
@@ -133,12 +191,16 @@ export default function AuthPage() {
           className="w-full max-w-md lg:max-w-lg glass-strong rounded-3xl p-8 lg:p-10"
         >
           <h2 className="text-2xl lg:text-3xl font-bold text-center mb-2">
-            {mode === 'signin' ? 'Welcome back' : 'Create an account'}
+            {mode === 'signin' && 'Welcome back'}
+            {mode === 'signup' && 'Create an account'}
+            {mode === 'forgot' && 'Forgot password'}
+            {mode === 'reset' && 'Set a new password'}
           </h2>
           <p className="text-muted-foreground text-center mb-6 lg:text-lg">
-            {mode === 'signin'
-              ? 'Sign in to discover your harmonic matches'
-              : 'Start discovering music through harmony'}
+            {mode === 'signin' && 'Sign in to discover your harmonic matches'}
+            {mode === 'signup' && 'Start discovering music through harmony'}
+            {mode === 'forgot' && 'Enter your email and we will send a reset link'}
+            {mode === 'reset' && 'Choose a new password to secure your account'}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -168,39 +230,59 @@ export default function AuthPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-muted/50"
+                disabled={mode === 'reset'}
               />
               {errors.email && (
                 <p className="text-xs text-destructive">{errors.email}</p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
+            {(mode === 'signin' || mode === 'signup' || mode === 'reset') && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="bg-muted/50 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="text-xs text-destructive">{errors.password}</p>
+                )}
+              </div>
+            )}
+
+            {mode === 'reset' && (
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm password</Label>
                 <Input
-                  id="password"
+                  id="confirmPassword"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-muted/50 pr-10"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="bg-muted/50"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
+                {errors.confirm && (
+                  <p className="text-xs text-destructive">{errors.confirm}</p>
+                )}
               </div>
-              {errors.password && (
-                <p className="text-xs text-destructive">{errors.password}</p>
-              )}
-            </div>
+            )}
 
             <Button
               type="submit"
@@ -210,10 +292,18 @@ export default function AuthPage() {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {mode === 'signin' ? 'Signing in...' : 'Creating account...'}
+                  {mode === 'signin' && 'Signing in...'}
+                  {mode === 'signup' && 'Creating account...'}
+                  {mode === 'forgot' && 'Sending reset email...'}
+                  {mode === 'reset' && 'Updating password...'}
                 </>
               ) : (
-                <>{mode === 'signin' ? 'Sign in' : 'Create account'}</>
+                <>
+                  {mode === 'signin' && 'Sign in'}
+                  {mode === 'signup' && 'Create account'}
+                  {mode === 'forgot' && 'Send reset link'}
+                  {mode === 'reset' && 'Save new password'}
+                </>
               )}
             </Button>
           </form>
@@ -232,12 +322,39 @@ export default function AuthPage() {
                 </>
               ) : (
                 <>
+                  <span className="mx-2 text-muted-foreground/60">·</span>
+                  <button
+                    onClick={() => setMode('forgot')}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Forgot password?
+                  </button>
                   Already have an account?{' '}
                   <button
                     onClick={() => setMode('signin')}
                     className="text-primary hover:underline font-medium"
                   >
                     Sign in
+                  </button>
+                </>
+              ) : mode === 'forgot' ? (
+                <>
+                  Remembered your password?{' '}
+                  <button
+                    onClick={() => setMode('signin')}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Back to sign in
+                  </button>
+                </>
+              ) : (
+                <>
+                  Done resetting?{' '}
+                  <button
+                    onClick={() => setMode('signin')}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Return to sign in
                   </button>
                 </>
               )}

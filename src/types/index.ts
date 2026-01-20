@@ -1,6 +1,17 @@
 // Music service providers
 export type MusicProvider = 'spotify' | 'apple_music' | 'deezer' | 'soundcloud' | 'youtube' | 'amazon_music';
 
+// Song section labels for structured navigation
+export type SectionLabel = 'intro' | 'verse' | 'pre-chorus' | 'chorus' | 'bridge' | 'outro' | 'solo' | 'breakdown';
+
+// Track section with timestamps (used for seeking within a song)
+export interface TrackSection {
+  id: string;
+  label: SectionLabel;
+  start_ms: number;
+  end_ms?: number;
+}
+
 // Provider link information
 export interface ProviderLink {
   provider: MusicProvider;
@@ -51,6 +62,9 @@ export interface Track {
   energy?: number;
   danceability?: number;
   valence?: number;
+  
+  // Song sections (intro, verse, chorus, etc.) with timestamps
+  sections?: TrackSection[];
   
   // Metadata
   popularity_score?: number;
@@ -127,11 +141,18 @@ export interface PlayEvent {
 // Track connections (WhoSampled-style)
 export type ConnectionType = 'sample' | 'cover' | 'interpolation' | 'remix' | 'inspiration';
 
+// What element of the song was sampled/used
+export type SampleElement = 'hook' | 'lyrics' | 'melody' | 'bassline' | 'drums' | 'vocals' | 'instrumental' | 'multiple' | 'other';
+
 export interface TrackConnection {
   id: string;
   from_track_id: string;
   to_track_id: string;
   connection_type: ConnectionType;
+  /** What part of the song was used (hook, lyrics, bassline, drums, etc.) */
+  sample_element?: SampleElement;
+  /** Description of how the sample was used */
+  sample_description?: string;
   confidence?: number;
   evidence_url?: string;
   evidence_text?: string;
@@ -144,6 +165,68 @@ export interface ConnectionGraph {
   upstream: Array<TrackConnection & { track: Track }>;   // What this track comes from
   downstream: Array<TrackConnection & { track: Track }>; // What this track influenced
   most_popular_derivative?: Track;
+}
+
+// Album type
+export interface Album {
+  id: string;
+  title: string;
+  artist_id?: string;
+  artist_name: string;
+  cover_url?: string;
+  release_date?: string;
+  total_tracks?: number;
+  tracks?: Track[];
+  spotify_id?: string;
+  provider?: MusicProvider;
+  created_at?: string;
+}
+
+// Artist type
+export interface Artist {
+  id: string;
+  name: string;
+  image_url?: string;
+  bio?: string;
+  genres?: string[];
+  follower_count?: number;
+  spotify_id?: string;
+  youtube_channel_id?: string;
+  provider?: MusicProvider;
+  albums?: Album[];
+  top_tracks?: Track[];
+  created_at?: string;
+}
+
+// Comment with likes for live feed
+export interface Comment {
+  id: string;
+  user_id: string;
+  content: string;
+  parent_id?: string | null;
+  /** Context: track_id, album_id, or artist_id */
+  context_type: 'track' | 'album' | 'artist';
+  context_id: string;
+  likes_count: number;
+  user_liked?: boolean;
+  user?: {
+    id: string;
+    display_name?: string;
+    avatar_url?: string;
+  };
+  created_at: string;
+  updated_at: string;
+  replies?: Comment[];
+}
+
+// Nearby listener activity
+export interface NearbyListener {
+  id: string;
+  user_id: string;
+  display_name?: string;
+  avatar_url?: string;
+  listened_at: string;
+  time_ago: string;
 }
 
 // Search types

@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, useCallback, ReactNode } from 'react';
 import { recordPlayEvent } from '@/api/playEvents';
 import { MusicProvider } from '@/types';
 
@@ -12,6 +12,8 @@ export interface PlayerState {
   provider: MusicProvider;
   providerTrackId: string | null;
   autoplay: boolean;
+  /** Start time in seconds for seeking (e.g., section navigation) */
+  seekToSec: number | null;
 }
 
 type OpenPlayerPayload = {
@@ -20,12 +22,18 @@ type OpenPlayerPayload = {
   providerTrackId: string | null;
   autoplay?: boolean;
   context?: string;
+  /** Optional start time in seconds */
+  startSec?: number;
 };
 
 interface PlayerContextValue extends PlayerState {
   openPlayer: (payload: OpenPlayerPayload) => void;
   closePlayer: () => void;
   switchProvider: (provider: MusicProvider, providerTrackId: string | null, canonicalTrackId?: string | null) => void;
+  /** Seek to a specific time (seconds). Used for section navigation. */
+  seekTo: (sec: number) => void;
+  /** Clear seekToSec after the player has performed the seek */
+  clearSeek: () => void;
 }
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
@@ -37,10 +45,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     provider: 'youtube',
     providerTrackId: null,
     autoplay: false,
+    seekToSec: null,
   });
+
+  const seekTo = useCallback((sec: number) => {
+    setState((prev) => ({ ...prev, seekToSec: sec }));
+  }, []);
+
+  const clearSeek = useCallback(() => {
+    setState((prev) => ({ ...prev, seekToSec: null }));
+  }, []);
 
   const value = useMemo<PlayerContextValue>(() => ({
     ...state,
+    seekTo,
+    clearSeek,
     openPlayer: (payload) => {
       setState((prev) => ({
         open: true,
@@ -48,6 +67,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         provider: payload.provider,
         providerTrackId: payload.providerTrackId,
         autoplay: payload.autoplay ?? true,
+        seekToSec: payload.startSec ?? null,
       }));
 
       if (payload.canonicalTrackId) {
@@ -61,7 +81,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
       }
     },
-    closePlayer: () => setState((prev) => ({ ...prev, open: false, autoplay: false })),
+    closePlayer: () => setState((prev) => ({ ...prev, open: false, autoplay: false, seekToSec: null })),
     switchProvider: (provider, providerTrackId, canonicalTrackId) => {
       setState((prev) => ({
         ...prev,
@@ -70,6 +90,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         canonicalTrackId: canonicalTrackId ?? prev.canonicalTrackId,
         open: true,
         autoplay: true,
+        seekToSec: null,
       }));
 
       const trackIdToLog = canonicalTrackId ?? state.canonicalTrackId;
@@ -84,7 +105,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
       }
     },
-  }), [state]);
+  }), [state, seekTo, clearSeek]);
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
 }
