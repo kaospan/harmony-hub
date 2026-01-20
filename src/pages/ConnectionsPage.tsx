@@ -284,5 +284,6 @@ export default function ConnectionsPage() {
         <BottomNav />
       </div>
     </div>
+  </div>
   );
 }
