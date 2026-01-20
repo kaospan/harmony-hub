@@ -13,6 +13,7 @@ import ConnectionsPage from "./pages/ConnectionsPage";
 import FollowingPage from "./pages/FollowingPage";
 import AlbumPage from "./pages/AlbumPage";
 import ArtistPage from "./pages/ArtistPage";
+import SpotifyCallbackPage from "./pages/SpotifyCallbackPage";
 import NotFound from "./pages/NotFound";
 import { PlayerProvider } from "./player/PlayerContext";
 import { EmbeddedPlayerDrawer } from "./player/EmbeddedPlayerDrawer";
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/connections/:trackId" element={<ConnectionsPage />} />
               <Route path="/album/:albumId" element={<AlbumPage />} />
               <Route path="/artist/:artistId" element={<ArtistPage />} />
+              <Route path="/auth/callback/spotify" element={<SpotifyCallbackPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
