@@ -1,6 +1,17 @@
 // Music service providers
 export type MusicProvider = 'spotify' | 'apple_music' | 'deezer' | 'soundcloud' | 'youtube' | 'amazon_music';
 
+// Song section types
+export type SongSectionType = 'intro' | 'verse' | 'chorus' | 'bridge' | 'outro';
+
+// Song section with timestamp for YouTube embed
+export interface SongSection {
+  type: SongSectionType;
+  label?: string; // e.g., "Verse 1", "Chorus", "Bridge"
+  start_time: number; // in seconds
+  end_time?: number; // in seconds (optional)
+}
+
 // Provider link information
 export interface ProviderLink {
   provider: MusicProvider;
@@ -35,6 +46,9 @@ export interface Track {
   url_spotify_web?: string;
   url_spotify_app?: string;
   url_youtube?: string;
+  
+  // Song structure data
+  sections?: SongSection[]; // Array of song sections with timestamps
   
   // Harmonic fingerprint data
   detected_key?: string;

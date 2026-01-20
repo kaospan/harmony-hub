@@ -1,6 +1,8 @@
 // Seed data with provider links for Spotify and YouTube
 // These are real track IDs for popular songs
 
+import { SongSection } from '@/types';
+
 export interface SeedTrack {
   title: string;
   artist: string;
@@ -14,6 +16,7 @@ export interface SeedTrack {
   loop_length_bars?: number;
   spotify_id?: string;
   youtube_id?: string;
+  sections?: SongSection[];
   energy?: number;
   danceability?: number;
   valence?: number;
@@ -33,6 +36,16 @@ export const seedTracksWithProviders: SeedTrack[] = [
     loop_length_bars: 4,
     spotify_id: "0VjIjW4GlUZAMYd2vXMi3b",
     youtube_id: "4NRXx6U8ABQ",
+    sections: [
+      { type: "intro", label: "Intro", start_time: 0, end_time: 12 },
+      { type: "verse", label: "Verse 1", start_time: 12, end_time: 40 },
+      { type: "chorus", label: "Chorus", start_time: 40, end_time: 68 },
+      { type: "verse", label: "Verse 2", start_time: 68, end_time: 96 },
+      { type: "chorus", label: "Chorus 2", start_time: 96, end_time: 124 },
+      { type: "bridge", label: "Bridge", start_time: 124, end_time: 152 },
+      { type: "chorus", label: "Final Chorus", start_time: 152, end_time: 180 },
+      { type: "outro", label: "Outro", start_time: 180, end_time: 200 },
+    ],
     energy: 0.73,
     danceability: 0.51,
     valence: 0.33,
@@ -50,6 +63,16 @@ export const seedTracksWithProviders: SeedTrack[] = [
     loop_length_bars: 4,
     spotify_id: "7qiZfU4dY1lWllzX7mPBI3",
     youtube_id: "JGwWNGJdvx8",
+    sections: [
+      { type: "intro", label: "Intro", start_time: 0, end_time: 8 },
+      { type: "verse", label: "Verse 1", start_time: 8, end_time: 36 },
+      { type: "chorus", label: "Chorus", start_time: 36, end_time: 64 },
+      { type: "verse", label: "Verse 2", start_time: 64, end_time: 92 },
+      { type: "chorus", label: "Chorus 2", start_time: 92, end_time: 120 },
+      { type: "bridge", label: "Bridge", start_time: 120, end_time: 148 },
+      { type: "chorus", label: "Final Chorus", start_time: 148, end_time: 204 },
+      { type: "outro", label: "Outro", start_time: 204, end_time: 233 },
+    ],
     energy: 0.65,
     danceability: 0.83,
     valence: 0.93,
