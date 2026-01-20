@@ -30,7 +30,6 @@ const sectionIcons: Record<SongSectionType, string> = {
 };
 
 export function SongSections({ sections, youtubeId, title, className }: SongSectionsProps) {
-  const [activeSection, setActiveSection] = useState<number | null>(null);
   const [expandedSection, setExpandedSection] = useState<number | null>(null);
 
   if (!sections || sections.length === 0) {
@@ -40,10 +39,8 @@ export function SongSections({ sections, youtubeId, title, className }: SongSect
   const handleSectionClick = (index: number) => {
     if (expandedSection === index) {
       setExpandedSection(null);
-      setActiveSection(null);
     } else {
       setExpandedSection(index);
-      setActiveSection(index);
     }
   };
 
@@ -60,10 +57,11 @@ export function SongSections({ sections, youtubeId, title, className }: SongSect
         <span>Song Structure</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        {sections.map((section, index) => (
-          <div key={index} className="space-y-2">
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          {sections.map((section, index) => (
             <motion.button
+              key={index}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => handleSectionClick(index)}
@@ -91,33 +89,30 @@ export function SongSections({ sections, youtubeId, title, className }: SongSect
               </div>
               <Play className="w-4 h-4 flex-shrink-0" />
             </motion.button>
+          ))}
+        </div>
 
-            <AnimatePresence>
-              {expandedSection === index && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="overflow-hidden col-span-2"
-                >
-                  <div className="rounded-lg overflow-hidden">
-                    <YouTubeEmbed
-                      videoId={youtubeId}
-                      title={`${title} - ${section.label || section.type}`}
-                      startTime={section.start_time}
-                      endTime={section.end_time}
-                      onClose={() => {
-                        setExpandedSection(null);
-                        setActiveSection(null);
-                      }}
-                    />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        ))}
+        <AnimatePresence>
+          {expandedSection !== null && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="rounded-lg overflow-hidden">
+                <YouTubeEmbed
+                  videoId={youtubeId}
+                  title={`${title} - ${sections[expandedSection].label || sections[expandedSection].type}`}
+                  startTime={sections[expandedSection].start_time}
+                  endTime={sections[expandedSection].end_time}
+                  onClose={() => setExpandedSection(null)}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
