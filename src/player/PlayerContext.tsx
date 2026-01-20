@@ -141,14 +141,14 @@ export function usePlayer() {
 export function resolveDefaultProvider(connected: ConnectedProviders): MusicProvider {
   // First check user's preferred provider from localStorage
   const preferred = getPreferredProvider();
-  if (preferred && preferred !== 'none') {
+  if (preferred) {
     // If user prefers Spotify, check if it's connected
     if (preferred === 'spotify' && connected?.spotify?.connected) {
       return 'spotify';
     }
     // For other providers, use the preference if it's valid
     if (preferred === 'youtube' || preferred === 'apple_music') {
-      return preferred as MusicProvider;
+      return preferred;
     }
   }
   
