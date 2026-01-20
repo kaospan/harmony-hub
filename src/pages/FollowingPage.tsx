@@ -229,7 +229,9 @@ export default function FollowingPage() {
                                 track={{
                                   spotifyId: item.track.spotify_id || undefined,
                                   youtubeId: item.track.youtube_id || undefined,
+                                  providerLinks: item.track.providerLinks,
                                 }}
+                                trackId={item.track.id}
                                 compact
                               />
                             </div>

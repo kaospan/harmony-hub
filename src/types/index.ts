@@ -8,6 +8,7 @@ export interface ProviderLink {
   url_web?: string;
   url_app?: string;
   url_preview?: string;
+  track_uuid?: string;
 }
 
 // Canonical track shape for unified search results
@@ -63,9 +64,6 @@ export interface UserProfile {
   display_name?: string;
   avatar_url?: string;
   preferred_provider?: MusicProvider | 'none';
-  twofa_enabled?: boolean;
-  twofa_secret?: string;
-  twofa_backup_codes?: string[];
   created_at?: string;
   updated_at?: string;
 }
@@ -164,15 +162,19 @@ export interface SearchParams {
 }
 
 // 2FA types
-export interface TwoFactorSetup {
+export interface TwoFactorSetupResult {
+  otpauth_uri: string;
   secret: string;
-  qr_code: string;
   backup_codes: string[];
 }
 
-export interface TwoFactorVerify {
+export interface TwoFactorStatus {
+  enabled: boolean;
+  backup_codes_remaining: number;
+}
+
+export interface TwoFactorVerifyRequest {
   code: string;
-  backup_code?: boolean;
 }
 
 // Roman numeral to display mapping

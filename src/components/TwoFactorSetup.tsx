@@ -3,21 +3,15 @@ import { motion } from 'framer-motion';
 import { Shield, Copy, Check, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
   DialogTitle,
-  DialogDescription 
+  DialogDescription,
 } from '@/components/ui/dialog';
-import { 
-  generateSecret, 
-  generateBackupCodes, 
-  generateQRCodeUrl, 
-  verifyTOTP,
-  hashBackupCode 
-} from '@/lib/totp';
-import { supabase } from '@/integrations/supabase/client';
+import { setup2FA, verify2FA } from '@/api/2fa';
+import { TwoFactorSetupResult } from '@/types';
 import { toast } from 'sonner';
 
 interface TwoFactorSetupProps {
@@ -28,7 +22,7 @@ interface TwoFactorSetupProps {
   onSuccess: () => void;
 }
 
-type SetupStep = 'intro' | 'scan' | 'verify' | 'backup' | 'complete';
+type SetupStep = 'intro' | 'scan' | 'verify' | 'backup';
 
 export function TwoFactorSetup({ 
   isOpen, 
@@ -38,32 +32,51 @@ export function TwoFactorSetup({
   onSuccess 
 }: TwoFactorSetupProps) {
   const [step, setStep] = useState<SetupStep>('intro');
-  const [secret, setSecret] = useState('');
-  const [qrUrl, setQrUrl] = useState('');
-  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [setupData, setSetupData] = useState<TwoFactorSetupResult | null>(null);
   const [verificationCode, setVerificationCode] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [backupCopied, setBackupCopied] = useState(false);
 
   useEffect(() => {
-    if (isOpen && step === 'intro') {
-      // Generate new secret when dialog opens
-      const newSecret = generateSecret();
-      setSecret(newSecret);
-      setQrUrl(generateQRCodeUrl(newSecret, userEmail));
-      setBackupCodes(generateBackupCodes());
+    if (!isOpen) {
+      setStep('intro');
+      setSetupData(null);
+      setVerificationCode('');
+      setCopied(false);
+      setBackupCopied(false);
     }
-  }, [isOpen, step, userEmail]);
+  }, [isOpen]);
+
+  const handleStart = async () => {
+    setIsStarting(true);
+    try {
+      const data = await setup2FA();
+      setSetupData(data);
+      setStep('scan');
+    } catch (error) {
+      console.error('2FA setup init error:', error);
+      toast.error('Unable to start 2FA setup right now.');
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const qrUrl = setupData
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setupData.otpauth_uri)}`
+    : '';
 
   const handleCopySecret = () => {
-    navigator.clipboard.writeText(secret);
+    if (!setupData?.secret) return;
+    navigator.clipboard.writeText(setupData.secret);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleCopyBackupCodes = () => {
-    navigator.clipboard.writeText(backupCodes.join('\n'));
+    if (!setupData?.backup_codes?.length) return;
+    navigator.clipboard.writeText(setupData.backup_codes.join('\n'));
     setBackupCopied(true);
     toast.success('Backup codes copied to clipboard');
     setTimeout(() => setBackupCopied(false), 2000);
@@ -76,32 +89,15 @@ export function TwoFactorSetup({
     }
 
     setIsVerifying(true);
-    
+
     try {
-      const isValid = await verifyTOTP(secret, verificationCode);
-      
+      const isValid = await verify2FA(verificationCode);
+
       if (!isValid) {
         toast.error('Invalid code. Please try again.');
         setIsVerifying(false);
         return;
       }
-
-      // Hash backup codes for storage
-      const hashedCodes = await Promise.all(
-        backupCodes.map(code => hashBackupCode(code))
-      );
-
-      // Save to database
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          twofa_enabled: true,
-          twofa_secret: secret,
-          twofa_backup_codes: hashedCodes,
-        })
-        .eq('id', userId);
-
-      if (error) throw error;
 
       setStep('backup');
     } catch (error) {

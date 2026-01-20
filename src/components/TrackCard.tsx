@@ -1,18 +1,17 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Bookmark, X, Sparkles, Waves, Play, Pause, ChevronDown, ExternalLink, Music } from 'lucide-react';
+import { Heart, Bookmark, X, Sparkles, Waves, Play, ChevronDown } from 'lucide-react';
 import { HarmonyCard } from './HarmonyCard';
 import { CommentsSheet } from './CommentsSheet';
 import { NearbyListenersSheet } from './NearbyListenersSheet';
 import { ShareSheet } from './ShareSheet';
-import { AudioPreview } from './AudioPreview';
 import { StreamingLinks } from './StreamingLinks';
 import { Button } from '@/components/ui/button';
 import { Track, InteractionType } from '@/types';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { useRecordListeningActivity } from '@/hooks/api/useNearbyListeners';
-import { useRecordPlay } from '@/hooks/api/useFollowing';
-import { useAuth } from '@/hooks/useAuth';
+import { useConnectedProviders } from '@/hooks/api/useConnectedProviders';
+import { usePlayer, resolveDefaultProvider } from '@/player/PlayerContext';
+import { MusicProvider } from '@/types';
 
 interface TrackCardProps {
   track: Track;
@@ -22,93 +21,47 @@ interface TrackCardProps {
 }
 
 export function TrackCard({ track, isActive, onInteraction, interactions = new Set() }: TrackCardProps) {
-  const { user } = useAuth();
-  const [isPlaying, setIsPlaying] = useState(false);
+  const connectedProviders = useConnectedProviders();
+  const { openPlayer, switchProvider } = usePlayer();
   const [showStreamingLinks, setShowStreamingLinks] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const playStartTimeRef = useRef<number | null>(null);
-  const recordActivity = useRecordListeningActivity();
-  const recordPlay = useRecordPlay();
 
-  // Pause audio when card becomes inactive
-  useEffect(() => {
-    if (!isActive && isPlaying) {
-      handlePause();
-    }
-  }, [isActive]);
+  const providerMap = useMemo(() => {
+    const map: Record<MusicProvider, string | undefined> = {} as any;
+    track.providerLinks?.forEach((l) => {
+      map[l.provider as MusicProvider] = l.provider_track_id;
+    });
+    if (track.spotify_id) map.spotify = track.spotify_id;
+    if (track.youtube_id) map.youtube = track.youtube_id;
+    return map;
+  }, [track.providerLinks, track.spotify_id, track.youtube_id]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    };
-  }, []);
+  const defaultProvider = useMemo(
+    () => resolveDefaultProvider(connectedProviders),
+    [connectedProviders]
+  );
+  const primaryLabel = defaultProvider === 'spotify' ? 'Play on Spotify' : 'Play on YouTube';
 
-  const handlePlay = useCallback(async () => {
-    if (audioRef.current && track.preview_url) {
-      try {
-        await audioRef.current.play();
-        setIsPlaying(true);
-        playStartTimeRef.current = Date.now();
-        
-        // Record listening activity
-        recordActivity.mutate({ 
-          trackId: track.id, 
-          artist: track.artist 
-        });
-      } catch (err) {
-        console.error('Playback failed:', err);
-      }
-    } else {
-      // No preview, show streaming links
-      setShowStreamingLinks(true);
-    }
-  }, [track.preview_url, track.id, track.artist, recordActivity]);
+  const providerButtons: Array<{ key: MusicProvider; label: string; color: string }> = [
+    { key: 'spotify', label: 'Spotify', color: '#1DB954' },
+    { key: 'youtube', label: 'YouTube', color: '#FF0000' },
+  ];
 
-  const handlePause = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-
-      // Record play duration
-      if (playStartTimeRef.current && user) {
-        const durationMs = Date.now() - playStartTimeRef.current;
-        recordPlay.mutate({
-          trackId: track.id,
-          durationMs,
-          source: 'feed',
-        });
-        playStartTimeRef.current = null;
-      }
-    }
-  }, [user, track.id, recordPlay]);
-
-  const handlePlayPause = () => {
-    if (isPlaying) {
-      handlePause();
-    } else {
-      handlePlay();
-    }
+  const handlePlayNow = () => {
+    const providerTrackId = providerMap[defaultProvider];
+    openPlayer({
+      canonicalTrackId: track.id,
+      provider: defaultProvider,
+      providerTrackId: providerTrackId ?? null,
+      autoplay: true,
+    });
   };
 
-  const handleAudioEnded = () => {
-    setIsPlaying(false);
-    if (playStartTimeRef.current && user) {
-      const durationMs = Date.now() - playStartTimeRef.current;
-      recordPlay.mutate({
-        trackId: track.id,
-        durationMs,
-        source: 'feed',
-      });
-      playStartTimeRef.current = null;
-    }
+  const handleProviderSwitch = (provider: MusicProvider) => {
+    const providerTrackId = providerMap[provider] ?? null;
+    switchProvider(provider, providerTrackId, track.id);
   };
 
-  const handleShare = () => {
-    onInteraction('share');
-  };
+  const handleShare = () => onInteraction('share');
 
   return (
     <motion.div
@@ -116,16 +69,6 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
       animate={{ opacity: isActive ? 1 : 0.5 }}
       className="relative w-full h-full flex flex-col lg:flex-row"
     >
-      {/* Hidden audio element for preview playback */}
-      {track.preview_url && (
-        <audio
-          ref={audioRef}
-          src={track.preview_url}
-          preload="none"
-          onEnded={handleAudioEnded}
-        />
-      )}
-
       {/* Background with cover art - Desktop left side */}
       <div className="absolute inset-0 lg:relative lg:w-1/2 lg:rounded-3xl lg:overflow-hidden z-0">
         {track.cover_url ? (
@@ -168,21 +111,39 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="flex items-center gap-2 lg:gap-3"
+          className="flex items-center gap-3 flex-wrap"
         >
           <Button
             variant="outline"
             size="lg"
-            onClick={handlePlayPause}
+            onClick={handlePlayNow}
             className="gap-2 glass border-white/20 hover:bg-white/10 text-sm lg:text-base"
           >
-            {isPlaying ? (
-              <Pause className="w-5 h-5 lg:w-6 lg:h-6" />
-            ) : (
-              <Play className="w-5 h-5 lg:w-6 lg:h-6" />
-            )}
-            {isPlaying ? 'Pause' : track.preview_url ? 'Play Preview' : 'Listen'}
+            <Play className="w-5 h-5 lg:w-6 lg:h-6" />
+            {primaryLabel}
           </Button>
+
+          <div className="flex items-center gap-2">
+            {providerButtons.map((p) => {
+              const available = !!providerMap[p.key];
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => available && handleProviderSwitch(p.key)}
+                  disabled={!available}
+                  className={cn(
+                    'h-10 w-10 rounded-full border border-white/20 flex items-center justify-center text-xs font-semibold transition-all',
+                    available ? 'hover:scale-105' : 'opacity-50 cursor-not-allowed'
+                  )}
+                  style={{ color: p.color }}
+                  aria-label={`Switch to ${p.label}`}
+                >
+                  {p.label.slice(0, 2)}
+                </button>
+              );
+            })}
+          </div>
 
           <Button
             variant="ghost"
@@ -212,7 +173,10 @@ export function TrackCard({ track, isActive, onInteraction, interactions = new S
                     urlSpotifyWeb: track.url_spotify_web || undefined,
                     urlSpotifyApp: track.url_spotify_app || undefined,
                     urlYoutube: track.url_youtube || undefined,
+                    providerLinks: track.providerLinks,
                   }}
+                  defaultProvider={defaultProvider}
+                  trackId={track.id}
                   compact
                 />
               </div>

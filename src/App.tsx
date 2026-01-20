@@ -12,6 +12,8 @@ import ProfilePage from "./pages/ProfilePage";
 import ConnectionsPage from "./pages/ConnectionsPage";
 import FollowingPage from "./pages/FollowingPage";
 import NotFound from "./pages/NotFound";
+import { PlayerProvider } from "./player/PlayerContext";
+import { EmbeddedPlayerDrawer } from "./player/EmbeddedPlayerDrawer";
 
 const queryClient = new QueryClient();
 
@@ -22,17 +24,20 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<FeedPage />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/compare" element={<ComparePage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/following" element={<FollowingPage />} />
-            <Route path="/connections/:trackId" element={<ConnectionsPage />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <PlayerProvider>
+            <Routes>
+              <Route path="/" element={<FeedPage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/compare" element={<ComparePage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/following" element={<FollowingPage />} />
+              <Route path="/connections/:trackId" element={<ConnectionsPage />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <EmbeddedPlayerDrawer />
+          </PlayerProvider>
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>

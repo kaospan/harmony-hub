@@ -22,6 +22,11 @@ export default function FeedPage() {
 
   const loading = authLoading || feedLoading;
 
+  // Reset to first track whenever feed reloads to avoid stale index blocking first swipe
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [tracks.length]);
+
   const handleInteraction = async (type: InteractionType) => {
     if (!user) {
       navigate('/auth');

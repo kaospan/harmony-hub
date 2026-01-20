@@ -9,9 +9,10 @@ import {
   getProviderLinks, 
   openProviderLink 
 } from '@/lib/providers';
+import { useRecordPlayEvent } from '@/hooks/api/usePlayEvents';
 
 interface PlayButtonProps {
-  track: TrackProviderInfo & { title: string; artist: string };
+  track: TrackProviderInfo & { title: string; artist: string; id?: string };
   defaultProvider?: MusicProvider | null;
   onSetDefault?: (provider: MusicProvider) => void;
   size?: 'sm' | 'md' | 'lg';
@@ -27,6 +28,7 @@ export function PlayButton({
 }: PlayButtonProps) {
   const [showPicker, setShowPicker] = useState(false);
   const links = getProviderLinks(track);
+  const recordPlayEvent = useRecordPlayEvent();
   const hasDefault = defaultProvider && links.some(l => l.provider === defaultProvider);
 
   const sizeClasses = {
@@ -45,6 +47,15 @@ export function PlayButton({
     if (hasDefault) {
       const defaultLink = links.find(l => l.provider === defaultProvider);
       if (defaultLink) {
+        const trackId = track.id || defaultLink.trackUuid;
+        if (trackId) {
+          recordPlayEvent.mutate({
+            track_id: trackId,
+            provider: defaultLink.provider,
+            action: defaultLink.appUrl ? 'open_app' : 'open_web',
+            context: 'play_button',
+          });
+        }
         openProviderLink(defaultLink, true);
         return;
       }

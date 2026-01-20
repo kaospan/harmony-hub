@@ -85,6 +85,7 @@ export async function fetchFeed(limit = 50): Promise<Track[]> {
           url_web: link.url_web,
           url_app: link.url_app,
           url_preview: link.url_preview,
+          track_uuid: link.track_id,
         })),
         spotify_id: links.find((l) => l.provider === 'spotify')?.provider_track_id,
         youtube_id: links.find((l) => l.provider === 'youtube')?.provider_track_id,

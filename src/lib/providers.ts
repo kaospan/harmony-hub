@@ -13,6 +13,7 @@ export interface ProviderLink {
   appUrl?: string;
   color: string;
   trackId: string;
+  trackUuid?: string;
 }
 
 export interface TrackProviderInfo {
@@ -57,6 +58,7 @@ export function getProviderLinks(track: TrackProviderInfo | Track): ProviderLink
         appUrl: link.url_app,
         color: providerInfo.color,
         trackId: link.provider_track_id,
+        trackUuid: link.track_uuid,
       };
     }).filter((link) => link.webUrl || link.appUrl);
   }
@@ -75,6 +77,7 @@ export function getProviderLinks(track: TrackProviderInfo | Track): ProviderLink
       appUrl: spotifyLinks.app,
       color: '#1DB954',
       trackId: track.spotifyId || '',
+      trackUuid: 'id' in track ? (track as Track).id : undefined,
     });
   }
 
@@ -90,6 +93,7 @@ export function getProviderLinks(track: TrackProviderInfo | Track): ProviderLink
       webUrl: youtubeUrl,
       color: '#FF0000',
       trackId: track.youtubeId || '',
+      trackUuid: 'id' in track ? (track as Track).id : undefined,
     });
   }
 

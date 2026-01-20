@@ -14,6 +14,162 @@ export type Database = {
   }
   public: {
     Tables: {
+      auth_2fa_secrets: {
+        Row: {
+          backup_codes_hashed: string[]
+          created_at: string
+          enabled: boolean
+          secret_encrypted: string
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          backup_codes_hashed: string[]
+          created_at?: string
+          enabled?: boolean
+          secret_encrypted: string
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          backup_codes_hashed?: string[]
+          created_at?: string
+          enabled?: boolean
+          secret_encrypted?: string
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auth_2fa_secrets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_accounts: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          provider: string
+          refresh_token: string | null
+          scopes: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          provider: string
+          refresh_token?: string | null
+          scopes?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          provider?: string
+          refresh_token?: string | null
+          scopes?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      external_tracks: {
+        Row: {
+          album: string | null
+          artist: string
+          artwork_url: string | null
+          duration_ms: number | null
+          id: string
+          isrc: string | null
+          provider: string
+          provider_track_id: string
+          raw_payload: Json
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          album?: string | null
+          artist: string
+          artwork_url?: string | null
+          duration_ms?: number | null
+          id?: string
+          isrc?: string | null
+          provider: string
+          provider_track_id: string
+          raw_payload?: Json
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          album?: string | null
+          artist?: string
+          artwork_url?: string | null
+          duration_ms?: number | null
+          id?: string
+          isrc?: string | null
+          provider?: string
+          provider_track_id?: string
+          raw_payload?: Json
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      oauth_states: {
+        Row: {
+          code_verifier: string
+          created_at: string
+          expires_at: string
+          provider: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          code_verifier: string
+          created_at?: string
+          expires_at?: string
+          provider: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          code_verifier?: string
+          created_at?: string
+          expires_at?: string
+          provider?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_states_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chord_submissions: {
         Row: {
           created_at: string
@@ -157,9 +313,6 @@ export type Database = {
           email: string | null
           id: string
           preferred_provider: string | null
-          twofa_backup_codes: string[] | null
-          twofa_enabled: boolean | null
-          twofa_secret: string | null
           updated_at: string
         }
         Insert: {
@@ -169,9 +322,6 @@ export type Database = {
           email?: string | null
           id: string
           preferred_provider?: string | null
-          twofa_backup_codes?: string[] | null
-          twofa_enabled?: boolean | null
-          twofa_secret?: string | null
           updated_at?: string
         }
         Update: {
@@ -181,9 +331,6 @@ export type Database = {
           email?: string | null
           id?: string
           preferred_provider?: string | null
-          twofa_backup_codes?: string[] | null
-          twofa_enabled?: boolean | null
-          twofa_secret?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -560,12 +707,48 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      disable_2fa: {
+        Args: {
+          code: string
+        }
+        Returns: boolean
+      }
+      get_2fa_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          backup_codes_remaining: number
+          enabled: boolean
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      setup_2fa: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          backup_codes: string[]
+          otpauth_uri: string
+          secret: string
+        }[]
+      }
+      verify_2fa: {
+        Args: {
+          code: string
+        }
+        Returns: boolean
+      }
+      verify_backup_code: {
+        Args: {
+          code: string
+        }
+        Returns: {
+          remaining_codes: number
+          success: boolean
+        }[]
       }
     }
     Enums: {

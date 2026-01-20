@@ -9,11 +9,12 @@ import {
   TrackProviderInfo,
   MusicProvider 
 } from '@/lib/providers';
+import { useRecordPlayEvent } from '@/hooks/api/usePlayEvents';
 
 interface ProviderPickerProps {
   isOpen: boolean;
   onClose: () => void;
-  track: TrackProviderInfo & { title: string; artist: string };
+  track: TrackProviderInfo & { title: string; artist: string; id?: string };
   defaultProvider?: MusicProvider | null;
   onSetDefault?: (provider: MusicProvider) => void;
 }
@@ -27,8 +28,19 @@ export function ProviderPicker({
 }: ProviderPickerProps) {
   const [selectedProvider, setSelectedProvider] = useState<MusicProvider | null>(null);
   const links = getProviderLinks(track);
+  const recordPlayEvent = useRecordPlayEvent();
 
   const handleProviderClick = (link: ProviderLink, openInApp: boolean) => {
+    const trackId = track.id || link.trackUuid;
+    if (trackId) {
+      recordPlayEvent.mutate({
+        track_id: trackId,
+        provider: link.provider,
+        action: openInApp && link.appUrl ? 'open_app' : 'open_web',
+        context: 'provider_picker',
+      });
+    }
+
     openProviderLink(link, openInApp);
     onClose();
   };
