@@ -139,10 +139,40 @@ bun run build
 # The `dist/` folder contains the production build
 ```
 
+
 Recommended platforms:
+- **GitHub Pages** — Free static hosting (see below)
 - **Vercel** — Zero-config React deployment
 - **Netlify** — Great for static sites
 - **Cloudflare Pages** — Edge-first hosting
+
+### Deploying to GitHub Pages
+
+1. Make sure your `package.json` includes:
+
+  ```json
+  "homepage": "https://kaospan.github.io/harmony-hub",
+  "scripts": {
+    "predeploy": "bun run build",
+    "deploy": "gh-pages -d dist"
+  }
+  ```
+
+2. Install the `gh-pages` package if you haven't already:
+
+  ```bash
+  bun add -D gh-pages
+  # or: npm install --save-dev gh-pages
+  ```
+
+3. Deploy:
+
+  ```bash
+  bun run deploy
+  # or: npm run deploy
+  ```
+
+Your site will be live at https://kaospan.github.io/harmony-hub
 
 ## 🤝 Contributing
 
