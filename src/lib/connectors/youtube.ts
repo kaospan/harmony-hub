@@ -1,6 +1,9 @@
 /**
  * YouTube API Connector
  * Implements unified search and link resolution for YouTube Music
+ * 
+ * SECURITY: All YouTube API calls are proxied through Edge Function
+ * The API key is stored server-side and never exposed to clients
  */
 
 import {
@@ -10,39 +13,14 @@ import {
   searchWithTimeout,
 } from './base';
 import { ProviderLink } from '@/types';
-
-interface YouTubeSearchResult {
-  id: {
-    videoId: string;
-  };
-  snippet: {
-    title: string;
-    channelTitle: string;
-    thumbnails: {
-      high?: { url: string };
-      medium?: { url: string };
-      default?: { url: string };
-    };
-  };
-}
-
-interface YouTubeVideoDetails {
-  id: string;
-  snippet: {
-    title: string;
-    channelTitle: string;
-  };
-  contentDetails: {
-    duration: string; // ISO 8601 format (PT4M33S)
-  };
-}
+import { supabase } from '@/integrations/supabase/client';
 
 export class YouTubeConnector implements ProviderConnector {
   readonly name = 'youtube' as const;
-  readonly enabled: boolean;
+  readonly enabled: boolean = true; // Always enabled - uses Edge Function
 
-  constructor(private apiKey?: string) {
-    this.enabled = !!apiKey;
+  constructor() {
+    // No API key needed client-side - all calls go through Edge Function
   }
 
   async searchTracks(options: SearchOptions): Promise<NormalizedTrack[]> {
@@ -54,119 +32,39 @@ export class YouTubeConnector implements ProviderConnector {
     return results;
   }
 
+  /**
+   * Search using Supabase Edge Function (server-side YouTube API)
+   * Requires authenticated user
+   */
   private async performSearch(query: string, limit: number): Promise<NormalizedTrack[]> {
-    if (!this.apiKey) {
-      throw new Error('YouTube API key not configured');
-    }
+    try {
+      // Check if user is authenticated
+      const { data: session } = await supabase.auth.getSession();
+      
+      if (!session?.session) {
+        console.log('YouTube search requires authentication');
+        return [];
+      }
 
-    // Search for music videos/tracks
-    const params = new URLSearchParams({
-      part: 'snippet',
-      q: query,
-      type: 'video',
-      videoCategoryId: '10', // Music category
-      maxResults: limit.toString(),
-      key: this.apiKey,
-    });
+      // Call Edge Function for YouTube search
+      const { data, error } = await supabase.functions.invoke('search_youtube', {
+        body: { query, limit },
+      });
 
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?${params}`
-    );
+      if (error) {
+        console.error('YouTube Edge Function error:', error);
+        return [];
+      }
 
-    if (!response.ok) {
-      throw new Error(`YouTube search failed: ${response.statusText}`);
-    }
+      if (!data?.results) {
+        return [];
+      }
 
-    const data = await response.json();
-    const items: YouTubeSearchResult[] = data.items || [];
-
-    // Get video details for duration
-    const videoIds = items.map(item => item.id.videoId).join(',');
-    const details = await this.getVideoDetails(videoIds);
-
-    return items.map((item, index) => this.normalizeTrack(item, details[index]));
-  }
-
-  private async getVideoDetails(videoIds: string): Promise<YouTubeVideoDetails[]> {
-    if (!this.apiKey || !videoIds) return [];
-
-    const params = new URLSearchParams({
-      part: 'contentDetails,snippet',
-      id: videoIds,
-      key: this.apiKey,
-    });
-
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?${params}`
-    );
-
-    if (!response.ok) {
+      return data.results as NormalizedTrack[];
+    } catch (error) {
+      console.error('YouTube search failed:', error);
       return [];
     }
-
-    const data = await response.json();
-    return data.items || [];
-  }
-
-  private normalizeTrack(
-    searchResult: YouTubeSearchResult,
-    details?: YouTubeVideoDetails
-  ): NormalizedTrack {
-    const videoId = searchResult.id.videoId;
-    
-    // Parse title to extract track name and artist
-    // Format is often: "Artist - Track Name" or "Track Name - Artist"
-    const fullTitle = searchResult.snippet.title;
-    const parts = fullTitle.split('-').map(p => p.trim());
-    
-    let title = fullTitle;
-    let artists = [searchResult.snippet.channelTitle];
-    
-    if (parts.length === 2) {
-      // Assume "Artist - Track" format
-      title = parts[1];
-      artists = [parts[0]];
-    } else if (parts.length > 2) {
-      // Take last part as title, rest as artist
-      title = parts[parts.length - 1];
-      artists = [parts.slice(0, -1).join(' - ')];
-    }
-
-    // Get thumbnail
-    const thumbnails = searchResult.snippet.thumbnails;
-    const artwork_url = thumbnails.high?.url || thumbnails.medium?.url || thumbnails.default?.url;
-
-    // Parse duration from ISO 8601 (PT4M33S -> milliseconds)
-    let duration_ms: number | undefined;
-    if (details?.contentDetails.duration) {
-      duration_ms = this.parseDuration(details.contentDetails.duration);
-    }
-
-    return {
-      title,
-      artists,
-      duration_ms,
-      artwork_url,
-      provider_track_id: videoId,
-      provider: 'youtube',
-      url_web: `https://www.youtube.com/watch?v=${videoId}`,
-      url_app: `vnd.youtube://watch?v=${videoId}`,
-      url_preview: `https://www.youtube.com/watch?v=${videoId}`,
-    };
-  }
-
-  /**
-   * Parse ISO 8601 duration (PT4M33S) to milliseconds
-   */
-  private parseDuration(isoDuration: string): number {
-    const match = isoDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-    if (!match) return 0;
-
-    const hours = parseInt(match[1] || '0', 10);
-    const minutes = parseInt(match[2] || '0', 10);
-    const seconds = parseInt(match[3] || '0', 10);
-
-    return (hours * 3600 + minutes * 60 + seconds) * 1000;
   }
 
   async resolveLinks(providerTrackId: string): Promise<ProviderLink> {
@@ -180,25 +78,11 @@ export class YouTubeConnector implements ProviderConnector {
   }
 
   async checkHealth(): Promise<boolean> {
-    if (!this.apiKey) return false;
-
+    // Check if user is authenticated (required for YouTube search)
     try {
-      // Simple test query
-      const params = new URLSearchParams({
-        part: 'snippet',
-        q: 'test',
-        type: 'video',
-        maxResults: '1',
-        key: this.apiKey,
-      });
-
-      const response = await fetch(
-        `https://www.googleapis.com/youtube/v3/search?${params}`
-      );
-
-      return response.ok;
-    } catch (error) {
-      console.error('YouTube health check failed:', error);
+      const { data: session } = await supabase.auth.getSession();
+      return !!session?.session;
+    } catch {
       return false;
     }
   }

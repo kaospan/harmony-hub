@@ -1,1 +1,10 @@
 project_id = "fteefcvikpowcewuqqez"
+
+[functions.setup_2fa]
+verify_jwt = false
+
+[functions.verify_2fa]
+verify_jwt = false
+
+[functions.search_youtube]
+verify_jwt = false

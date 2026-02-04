@@ -57,7 +57,7 @@ export class SpotifyConnector implements ProviderConnector {
 
   /**
    * Search using Supabase Edge Function (server-side Spotify auth)
-   * Falls back to cached/external tracks if user not authenticated
+   * Falls back to tracks table if user not authenticated
    */
   private async performSearch(
     query: string,
@@ -78,11 +78,11 @@ export class SpotifyConnector implements ProviderConnector {
         }
       }
       
-      // Fallback: Search cached external_tracks table
+      // Fallback: Search cached tracks table
       // Sanitize search input to prevent filter injection
       const sanitizedQuery = query.replace(/[%_,().*\\]/g, '');
       const { data: cached } = await supabase
-        .from('external_tracks')
+        .from('tracks')
         .select('*')
         .eq('provider', 'spotify')
         .or(`title.ilike.%${sanitizedQuery}%,artist.ilike.%${sanitizedQuery}%`)
@@ -107,10 +107,10 @@ export class SpotifyConnector implements ProviderConnector {
       duration_ms: result.duration_ms || 0,
       artwork_url: result.artwork_url,
       isrc: result.isrc,
-      provider_track_id: result.providers?.spotify?.provider_track_id || '',
+      provider_track_id: result.providers?.spotify?.provider_track_id || result.spotify_id || '',
       provider: 'spotify',
-      url_web: `https://open.spotify.com/track/${result.providers?.spotify?.provider_track_id}`,
-      url_app: `spotify:track:${result.providers?.spotify?.provider_track_id}`,
+      url_web: `https://open.spotify.com/track/${result.providers?.spotify?.provider_track_id || result.spotify_id}`,
+      url_app: `spotify:track:${result.providers?.spotify?.provider_track_id || result.spotify_id}`,
     };
   }
 
@@ -120,30 +120,29 @@ export class SpotifyConnector implements ProviderConnector {
       artists: track.artist?.split(', ') || [],
       album: track.album || '',
       duration_ms: track.duration_ms || 0,
-      artwork_url: track.artwork_url,
+      artwork_url: track.cover_url,
       isrc: track.isrc,
-      provider_track_id: track.provider_track_id,
+      provider_track_id: track.spotify_id || track.external_id,
       provider: 'spotify',
-      url_web: `https://open.spotify.com/track/${track.provider_track_id}`,
-      url_app: `spotify:track:${track.provider_track_id}`,
+      url_web: track.url_spotify_web || `https://open.spotify.com/track/${track.spotify_id || track.external_id}`,
+      url_app: track.url_spotify_app || `spotify:track:${track.spotify_id || track.external_id}`,
     };
   }
 
   async resolveLinks(providerTrackId: string): Promise<ProviderLink> {
-    // Look up from track_provider_links table
+    // Look up from tracks table
     const { data } = await supabase
-      .from('track_provider_links')
-      .select('*')
-      .eq('provider', 'spotify')
-      .eq('provider_track_id', providerTrackId)
+      .from('tracks')
+      .select('spotify_id, url_spotify_web, url_spotify_app')
+      .eq('spotify_id', providerTrackId)
       .single();
     
     if (data) {
       return {
         provider: 'spotify',
-        provider_track_id: data.provider_track_id,
-        url_web: data.url_web,
-        url_app: data.url_app,
+        provider_track_id: data.spotify_id || providerTrackId,
+        url_web: data.url_spotify_web || `https://open.spotify.com/track/${providerTrackId}`,
+        url_app: data.url_spotify_app || `spotify:track:${providerTrackId}`,
       };
     }
 
@@ -159,7 +158,7 @@ export class SpotifyConnector implements ProviderConnector {
   async checkHealth(): Promise<boolean> {
     // Check if we can connect to Supabase
     try {
-      const { error } = await supabase.from('external_tracks').select('id').limit(1);
+      const { error } = await supabase.from('tracks').select('id').limit(1);
       return !error;
     } catch {
       return false;

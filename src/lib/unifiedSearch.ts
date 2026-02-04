@@ -30,9 +30,9 @@ class ConnectorRegistry {
       // NOTE: Client secret is NOT exposed here - auth happens server-side
     ));
     
-    this.register(new YouTubeConnector(
-      import.meta.env.VITE_YOUTUBE_API_KEY
-    ));
+    // YouTube uses server-side Edge Function - no API key exposed client-side
+    // SECURITY: The API key is stored in Supabase Edge Function secrets
+    this.register(new YouTubeConnector());
     
     this.register(new AppleMusicConnector());
     this.register(new DeezerConnector());
