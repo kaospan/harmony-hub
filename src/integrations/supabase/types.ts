@@ -296,7 +296,6 @@ export type Database = {
           progression_raw: string[] | null
           progression_roman: string[] | null
           provider: string
-          sections: Json | null
           spotify_id: string | null
           title: string
           updated_at: string
@@ -327,7 +326,6 @@ export type Database = {
           progression_raw?: string[] | null
           progression_roman?: string[] | null
           provider: string
-          sections?: Json | null
           spotify_id?: string | null
           title: string
           updated_at?: string
@@ -358,7 +356,6 @@ export type Database = {
           progression_raw?: string[] | null
           progression_roman?: string[] | null
           provider?: string
-          sections?: Json | null
           spotify_id?: string | null
           title?: string
           updated_at?: string

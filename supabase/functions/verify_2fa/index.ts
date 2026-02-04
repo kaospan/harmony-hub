@@ -10,6 +10,11 @@ const serviceClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 function base32Decode(encoded: string): Uint8Array {
@@ -38,13 +43,13 @@ function base32Decode(encoded: string): Uint8Array {
 async function hmacSha1(key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    key,
+    key.buffer as ArrayBuffer,
     { name: 'HMAC', hash: 'SHA-1' },
     false,
     ['sign']
   );
   
-  const signature = await crypto.subtle.sign('HMAC', cryptoKey, data);
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, data.buffer as ArrayBuffer);
   return new Uint8Array(signature);
 }
 
@@ -99,11 +104,6 @@ async function getUser(req: Request) {
 }
 
 Deno.serve(async (req) => {
-  const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  };
-
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -143,6 +143,8 @@ Deno.serve(async (req) => {
 
       const isValid = await verifyTOTP(twoFaData.secret, code);
       
+      console.log(`2FA TOTP verification for user ${user.id}: ${isValid ? 'success' : 'failed'}`);
+      
       return new Response(JSON.stringify({ valid: isValid }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -161,6 +163,7 @@ Deno.serve(async (req) => {
       const codeIndex = backupCodes.indexOf(hashedCode);
       
       if (codeIndex === -1) {
+        console.log(`2FA backup code verification failed for user ${user.id}`);
         return new Response(JSON.stringify({ valid: false }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -174,6 +177,8 @@ Deno.serve(async (req) => {
         .from('secure_2fa_secrets')
         .update({ backup_codes: updatedCodes })
         .eq('user_id', user.id);
+
+      console.log(`2FA backup code used for user ${user.id}, ${updatedCodes.length} remaining`);
 
       return new Response(JSON.stringify({ valid: true, remaining_codes: updatedCodes.length }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -189,7 +194,7 @@ Deno.serve(async (req) => {
     console.error('2FA verification error:', error);
     return new Response(JSON.stringify({ error: 'Internal error' }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
