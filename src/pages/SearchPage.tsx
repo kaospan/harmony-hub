@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { BottomNav } from '@/components/BottomNav';
 import { ChordBadge } from '@/components/ChordBadge';
@@ -6,28 +6,33 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { seedTracks, progressionArchetypes } from '@/data/seedTracks';
 import { Track } from '@/types';
-import { Search, Music, TrendingUp, ArrowRight, Play, ExternalLink } from 'lucide-react';
+import { Search, Music, TrendingUp, ArrowRight, Play, ExternalLink, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { openProviderLink, getProviderLinks } from '@/lib/providers';
+import { useUnifiedSearch } from '@/hooks/api/useSearch';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function SearchPage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'song' | 'chord'>('song');
+  
+  // Debounce query for API calls
+  const debouncedQuery = useDebounce(query, 400);
+  
+  // Unified search across providers (YouTube, Spotify, etc.)
+  const { data: searchResult, isLoading: isSearching } = useUnifiedSearch(
+    { query: debouncedQuery, limit: 20 },
+    searchMode === 'song' && debouncedQuery.length >= 2
+  );
 
-  // Real-time search results
-  const results = useMemo(() => {
+  // For chord search, use local seedTracks; for song search, use unified search
+  const results = useMemo((): Track[] => {
     if (!query.trim()) return [];
 
     if (searchMode === 'song') {
-      // Search by song/artist
-      const lowerQuery = query.toLowerCase();
-      return seedTracks.filter(
-        (t) =>
-          t.title.toLowerCase().includes(lowerQuery) ||
-          t.artist?.toLowerCase().includes(lowerQuery) ||
-          t.album?.toLowerCase().includes(lowerQuery)
-      );
+      // Return results from unified search API
+      return searchResult?.tracks || [];
     } else {
       // Search by chord progression
       const chords = query
@@ -44,7 +49,7 @@ export default function SearchPage() {
         );
       });
     }
-  }, [query, searchMode]);
+  }, [query, searchMode, searchResult?.tracks]);
 
   const handlePlayOnProvider = (track: Track) => {
     const links = getProviderLinks({
@@ -108,6 +113,9 @@ export default function SearchPage() {
               className="pl-10 bg-muted/50"
               autoFocus
             />
+            {isSearching && searchMode === 'song' && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground animate-spin" />
+            )}
           </div>
         </div>
       </header>
@@ -214,7 +222,7 @@ export default function SearchPage() {
         )}
 
         {/* No results */}
-        {query && results.length === 0 && (
+        {query && results.length === 0 && !isSearching && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No results found for "{query}"</p>
             <p className="text-sm text-muted-foreground mt-1">
